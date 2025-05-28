@@ -35,13 +35,13 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
         try:
             filtered_df['TimeBetStruckAt'] = pd.to_datetime(filtered_df['TimeBetStruckAt'])
             
-            # Filter by date range
+            # Filter by datetime range
             if start_date and end_date:
-                start_datetime = pd.to_datetime(start_date)
-                end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1)  # Include end date
+                start_dt = pd.to_datetime(start_date)
+                end_dt = pd.to_datetime(end_date)
                 filtered_df = filtered_df[
-                    (filtered_df['TimeBetStruckAt'] >= start_datetime) & 
-                    (filtered_df['TimeBetStruckAt'] < end_datetime)
+                    (filtered_df['TimeBetStruckAt'] >= start_dt) & 
+                    (filtered_df['TimeBetStruckAt'] <= end_dt)
                 ]
         except Exception as e:
             st.warning(f"Warning: Could not process date filtering - {str(e)}")
@@ -221,37 +221,58 @@ def main():
         else:
             st.info("SelectionName column not found in data")
     
-    # Date range filter
-    st.subheader("📅 Date Range Filter")
+    # Date and time range filter
+    st.subheader("📅 Date & Time Range Filter")
     
-    date_col1, date_col2 = st.columns(2)
-    
-    start_date = None
-    end_date = None
+    start_datetime = None
+    end_datetime = None
     
     if 'TimeBetStruckAt' in df.columns:
         try:
-            # Convert to datetime and get min/max dates
+            # Convert to datetime and get min/max datetimes
             df_temp = df.copy()
             df_temp['TimeBetStruckAt'] = pd.to_datetime(df_temp['TimeBetStruckAt'])
-            min_date = df_temp['TimeBetStruckAt'].min().date()
-            max_date = df_temp['TimeBetStruckAt'].max().date()
+            min_datetime = df_temp['TimeBetStruckAt'].min()
+            max_datetime = df_temp['TimeBetStruckAt'].max()
+            
+            date_col1, date_col2 = st.columns(2)
             
             with date_col1:
+                st.write("**Start Date & Time**")
                 start_date = st.date_input(
                     "Start Date",
-                    value=min_date,
-                    min_value=min_date,
-                    max_value=max_date
+                    value=min_datetime.date(),
+                    min_value=min_datetime.date(),
+                    max_value=max_datetime.date(),
+                    key="start_date"
                 )
+                start_time = st.time_input(
+                    "Start Time",
+                    value=min_datetime.time(),
+                    key="start_time"
+                )
+                # Combine date and time
+                start_datetime = datetime.combine(start_date, start_time)
             
             with date_col2:
+                st.write("**End Date & Time**")
                 end_date = st.date_input(
                     "End Date", 
-                    value=max_date,
-                    min_value=min_date,
-                    max_value=max_date
+                    value=max_datetime.date(),
+                    min_value=min_datetime.date(),
+                    max_value=max_datetime.date(),
+                    key="end_date"
                 )
+                end_time = st.time_input(
+                    "End Time",
+                    value=max_datetime.time(),
+                    key="end_time"
+                )
+                # Combine date and time
+                end_datetime = datetime.combine(end_date, end_time)
+            
+            # Display selected datetime range
+            st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
                 
         except Exception as e:
             st.warning(f"Could not process date column: {str(e)}")
@@ -267,8 +288,8 @@ def main():
                 df, 
                 selected_markets, 
                 selected_selections, 
-                start_date, 
-                end_date
+                start_datetime, 
+                end_datetime
             )
         
         if results_df is not None and not results_df.empty:
