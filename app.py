@@ -54,14 +54,6 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
     if 'SelectionName' in filtered_df.columns and selected_selections and 'Select All' not in selected_selections:
         filtered_df = filtered_df[filtered_df['SelectionName'].isin(selected_selections)]
     
-    # Map source names to standardized format
-    source_mapping = {
-        'BETFAIR': 'Betfair',
-        'PADDY_POWER': 'Paddy Power', 
-        'SKYBET': 'SBGv2',
-        'SBGv2': 'SBGv2'
-    }
-    
     # Check if we have a Source column or similar
     source_column = None
     for col in filtered_df.columns:
@@ -73,46 +65,69 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
         st.error("No source/brand column found in the data. Expected columns: 'Source', 'Brand', or 'Operator'")
         return None
     
-    # Standardize source names
-    filtered_df['StandardizedSource'] = filtered_df[source_column].map(source_mapping).fillna(filtered_df[source_column])
+    # Filter to only include your specific brands
+    target_brands = ['BETFAIR', 'PADDY_POWER', 'SKYBET']
+    filtered_df = filtered_df[filtered_df[source_column].isin(target_brands)]
     
-    # Initialize results dictionary
+    # Map source names to display format
+    source_mapping = {
+        'BETFAIR': 'Betfair',
+        'PADDY_POWER': 'Paddy Power', 
+        'SKYBET': 'SBGv2'
+    }
+    
+    # Initialize results for all three brands
     results = []
     
-    # Process each source
-    for source in filtered_df['StandardizedSource'].unique():
-        source_data = filtered_df[filtered_df['StandardizedSource'] == source]
+    # Process each target brand
+    for brand in target_brands:
+        source_data = filtered_df[filtered_df[source_column] == brand]
+        display_name = source_mapping.get(brand, brand)
         
-        # Calculate metrics
-        total_bets = len(source_data)
-        
-        # Handle duplicate BetId entries for stakes - sum stakes only once per unique BetId
-        if 'BetId' in source_data.columns and 'Stake' in source_data.columns:
-            # Group by BetId and sum stakes to handle duplicates
-            unique_stakes = source_data.groupby('BetId')['Stake'].sum()
-            total_stakes = unique_stakes.sum()
-        elif 'Stake' in source_data.columns:
-            total_stakes = source_data['Stake'].sum()
+        if len(source_data) > 0:
+            # Calculate unique bets (unique BetId values)
+            if 'BetId' in source_data.columns:
+                unique_bet_ids = source_data['BetId'].nunique()
+                
+                # Calculate total stakes - sum TotalStakeGBP only once per unique BetId
+                if 'TotalStakeGBP' in source_data.columns:
+                    # Group by BetId and take first stake value to avoid double counting
+                    unique_stakes = source_data.groupby('BetId')['TotalStakeGBP'].first()
+                    total_stakes = unique_stakes.sum()
+                else:
+                    total_stakes = 0
+            else:
+                unique_bet_ids = len(source_data)
+                total_stakes = source_data.get('TotalStakeGBP', pd.Series([0])).sum()
+            
+            # Count unique customers
+            if 'CustomerId' in source_data.columns:
+                unique_customers = source_data['CustomerId'].nunique()
+            else:
+                unique_customers = 0
         else:
+            # No data for this brand - set all metrics to 0
+            unique_bet_ids = 0
             total_stakes = 0
-        
-        # Count unique customers
-        if 'CustomerId' in source_data.columns:
-            unique_customers = source_data['CustomerId'].nunique()
-        else:
             unique_customers = 0
         
         results.append({
-            'Brand': source,
-            'Total Bets': total_bets,
+            'Brand': display_name,
+            'Single Bets': '',  # Empty as shown in screenshot
+            'Single Stakes': '',  # Empty as shown in screenshot
+            'Total Bets': unique_bet_ids,
             'Total Stakes': f"£{total_stakes:.2f}",
             'Total Unique Customers': unique_customers
         })
     
-    # Convert to DataFrame and sort by brand name
+    # Convert to DataFrame and sort by brand name for consistent ordering
     results_df = pd.DataFrame(results)
     if not results_df.empty:
-        results_df = results_df.sort_values('Brand')
+        # Sort to match the order: Betfair, Paddy Power, SBGv2
+        brand_order = ['Betfair', 'Paddy Power', 'SBGv2']
+        brand_order_map = {brand: i for i, brand in enumerate(brand_order)}
+        results_df['sort_order'] = results_df['Brand'].apply(lambda x: brand_order_map.get(x, 999))
+        results_df = results_df.sort_values('sort_order').drop('sort_order', axis=1)
     
     return results_df
 
@@ -175,10 +190,27 @@ def main():
         else:
             st.info("MarketName column not found in data")
     
-    # SelectionName filter  
+    # SelectionName filter - dynamically filtered based on selected markets
     with col2:
         selected_selections = []
-        if 'SelectionName' in df.columns:
+        if 'SelectionName' in df.columns and 'MarketName' in df.columns:
+            # Filter selections based on selected markets
+            if selected_markets and 'Select All' not in selected_markets:
+                # Get selections only for the selected markets
+                filtered_df_for_selections = df[df['MarketName'].isin(selected_markets)]
+                available_selections = list(filtered_df_for_selections['SelectionName'].dropna().unique())
+            else:
+                # Show all selections if all markets are selected
+                available_selections = list(df['SelectionName'].dropna().unique())
+            
+            unique_selections = ['Select All'] + sorted(available_selections)
+            selected_selections = st.multiselect(
+                "Select Selection Names",
+                options=unique_selections,
+                default=['Select All'],
+                help="Choose specific selections or 'Select All' for all selections"
+            )
+        elif 'SelectionName' in df.columns:
             unique_selections = ['Select All'] + sorted(df['SelectionName'].dropna().unique().tolist())
             selected_selections = st.multiselect(
                 "Select Selection Names",
