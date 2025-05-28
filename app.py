@@ -246,11 +246,20 @@ def main():
                     max_value=max_datetime.date(),
                     key="start_date"
                 )
+                
+                # Quick time selection dropdown
+                start_time_quick = st.time_input(
+                    "Quick Time Selection",
+                    value=min_datetime.time(),
+                    key="start_time_quick"
+                )
+                
+                # Precise time adjustment
                 start_time_str = st.text_input(
-                    "Start Time (HH:MM:SS)",
-                    value=min_datetime.strftime("%H:%M:%S"),
-                    help="Enter time in format HH:MM:SS (e.g., 03:01:05)",
-                    key="start_time"
+                    "Precise Time (HH:MM:SS)",
+                    value=start_time_quick.strftime("%H:%M:%S"),
+                    help="Fine-tune time with seconds precision (e.g., 03:01:05)",
+                    key="start_time_precise"
                 )
                 
                 # Parse and validate start time
@@ -258,8 +267,8 @@ def main():
                     start_time = datetime.strptime(start_time_str, "%H:%M:%S").time()
                     start_datetime = datetime.combine(start_date, start_time)
                 except ValueError:
-                    st.error("Invalid start time format. Please use HH:MM:SS (e.g., 03:01:05)")
-                    start_datetime = datetime.combine(start_date, min_datetime.time())
+                    st.error("Invalid time format. Please use HH:MM:SS")
+                    start_datetime = datetime.combine(start_date, start_time_quick)
             
             with date_col2:
                 st.write("**End Date & Time**")
@@ -270,11 +279,20 @@ def main():
                     max_value=max_datetime.date(),
                     key="end_date"
                 )
+                
+                # Quick time selection dropdown
+                end_time_quick = st.time_input(
+                    "Quick Time Selection",
+                    value=max_datetime.time(),
+                    key="end_time_quick"
+                )
+                
+                # Precise time adjustment
                 end_time_str = st.text_input(
-                    "End Time (HH:MM:SS)",
-                    value=max_datetime.strftime("%H:%M:%S"),
-                    help="Enter time in format HH:MM:SS (e.g., 15:10:00)",
-                    key="end_time"
+                    "Precise Time (HH:MM:SS)",
+                    value=end_time_quick.strftime("%H:%M:%S"),
+                    help="Fine-tune time with seconds precision (e.g., 15:10:00)",
+                    key="end_time_precise"
                 )
                 
                 # Parse and validate end time
@@ -282,8 +300,8 @@ def main():
                     end_time = datetime.strptime(end_time_str, "%H:%M:%S").time()
                     end_datetime = datetime.combine(end_date, end_time)
                 except ValueError:
-                    st.error("Invalid end time format. Please use HH:MM:SS (e.g., 15:10:00)")
-                    end_datetime = datetime.combine(end_date, max_datetime.time())
+                    st.error("Invalid time format. Please use HH:MM:SS")
+                    end_datetime = datetime.combine(end_date, end_time_quick)
             
             # Display selected datetime range
             st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
