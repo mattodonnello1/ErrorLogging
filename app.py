@@ -246,13 +246,20 @@ def main():
                     max_value=max_datetime.date(),
                     key="start_date"
                 )
-                start_time = st.time_input(
-                    "Start Time",
-                    value=min_datetime.time(),
+                start_time_str = st.text_input(
+                    "Start Time (HH:MM:SS)",
+                    value=min_datetime.strftime("%H:%M:%S"),
+                    help="Enter time in format HH:MM:SS (e.g., 03:01:05)",
                     key="start_time"
                 )
-                # Combine date and time
-                start_datetime = datetime.combine(start_date, start_time)
+                
+                # Parse and validate start time
+                try:
+                    start_time = datetime.strptime(start_time_str, "%H:%M:%S").time()
+                    start_datetime = datetime.combine(start_date, start_time)
+                except ValueError:
+                    st.error("Invalid start time format. Please use HH:MM:SS (e.g., 03:01:05)")
+                    start_datetime = datetime.combine(start_date, min_datetime.time())
             
             with date_col2:
                 st.write("**End Date & Time**")
@@ -263,13 +270,20 @@ def main():
                     max_value=max_datetime.date(),
                     key="end_date"
                 )
-                end_time = st.time_input(
-                    "End Time",
-                    value=max_datetime.time(),
+                end_time_str = st.text_input(
+                    "End Time (HH:MM:SS)",
+                    value=max_datetime.strftime("%H:%M:%S"),
+                    help="Enter time in format HH:MM:SS (e.g., 15:10:00)",
                     key="end_time"
                 )
-                # Combine date and time
-                end_datetime = datetime.combine(end_date, end_time)
+                
+                # Parse and validate end time
+                try:
+                    end_time = datetime.strptime(end_time_str, "%H:%M:%S").time()
+                    end_datetime = datetime.combine(end_date, end_time)
+                except ValueError:
+                    st.error("Invalid end time format. Please use HH:MM:SS (e.g., 15:10:00)")
+                    end_datetime = datetime.combine(end_date, max_datetime.time())
             
             # Display selected datetime range
             st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
