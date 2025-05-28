@@ -1,64 +1,38 @@
-# Team Setup Instructions
+# Quick Setup Guide for Error Logging Analysis Tool
 
-## Quick Start Guide
+## For Team Members - No Coding Required!
 
-### Option 1: Local Installation (Recommended for Teams)
+### Step 1: Access the Shared Folder
+1. Navigate to the `Error_Logging_Visual` folder
+2. You should see files like `app.py`, `README.md`, and this setup guide
 
-1. **Download all files** from this project folder
-2. **Create a new folder** on your computer (e.g., "BettingAnalysisTool")
-3. **Copy these files** into your new folder:
-   - `app.py` (main application)
-   - `README.md` (documentation)
-   - `package_requirements.txt` (dependencies list)
-   - `setup_instructions.md` (this file)
+### Step 2: Open in Replit (Recommended - Easiest Method)
+1. **If opening from Replit:**
+   - Click the "Run" button (green play button) at the top of the screen
+   - Wait for the application to start (usually takes 30-60 seconds)
+   - The app will automatically open in a new tab
 
-4. **Install Python** (if not already installed):
-   - Download from [python.org](https://python.org)
-   - Choose Python 3.11 or newer
+2. **If the folder is shared via file system:**
+   - Upload the entire folder to Replit
+   - Click "Run" once uploaded
 
-5. **Open command prompt/terminal** in your folder and run:
-   ```bash
-   pip install streamlit pandas openpyxl numpy
-   ```
+### Step 3: Using the Application
+1. Once running, you'll see the "Betting Data Analysis Tool" interface
+2. Upload your Excel files using the file uploader
+3. Select your filters (markets, selections, date ranges)
+4. View the generated analysis and charts
 
-6. **Start the application**:
-   ```bash
-   streamlit run app.py
-   ```
-
-7. **Access the app**: Your browser will automatically open to `http://localhost:8501`
-
-### Option 2: Share Folder Access
-
-You can also:
-- Create a shared network drive folder
-- Place all files in the shared folder
-- Each team member can run the app locally from the shared location
-
-## Team Collaboration
-
-### File Sharing
-- Keep your Excel data files in a separate "data" subfolder
-- Each team member can upload their own files
-- Results can be exported or screenshotted for sharing
-
-### Consistent Usage
-- Use the same filtering criteria across team members for consistent results
-- Document your analysis parameters for reproducibility
+### Step 4: Stopping the Application
+- Simply close the browser tab when finished
+- The application will automatically stop
 
 ## Troubleshooting
+- **If the Run button doesn't work:** Refresh the page and try again
+- **If you get errors:** Make sure all Excel files are properly formatted
+- **If the app doesn't load:** Wait a bit longer - initial startup can take up to 2 minutes
 
-### Common Issues:
-1. **"streamlit command not found"**: Make sure Python and pip are properly installed
-2. **Import errors**: Run the pip install command again
-3. **Port already in use**: Close other Streamlit apps or use `streamlit run app.py --server.port 8502`
+## Need Help?
+Contact the development team if you encounter any issues not covered here.
 
-### Getting Help:
-- Check the README.md for detailed usage instructions
-- Ensure your Excel files have the required columns
-- Verify date/time formats in your data
-
-## Security Notes
-- This tool runs locally on your machine
-- No data is sent to external servers
-- Excel files are processed locally and securely
+---
+*This tool analyzes betting data from Excel files and provides interactive visualizations and metrics.*
