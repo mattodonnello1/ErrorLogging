@@ -1,8 +1,10 @@
-
 import streamlit as st
+st.set_page_config(page_title="Error Logging Tool", layout="wide")
+st.title("🔐 Secure Login")
+
 import streamlit_authenticator as stauth
 
-# Sample credentials (change these before sharing)
+# Sample credentials (change before sharing)
 names = ['Alice Smith', 'Bob Jones']
 usernames = ['alice', 'bob']
 passwords = ['abc123', 'def456']
@@ -23,7 +25,6 @@ elif authentication_status == None:
 else:
     authenticator.logout('Logout', 'sidebar')
     st.sidebar.success(f'Logged in as {name}')
-
 
 import streamlit as st
 import pandas as pd
