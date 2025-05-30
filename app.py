@@ -4,10 +4,9 @@ st.title("🔐 Secure Login")
 
 import streamlit_authenticator as stauth
 
-# Create hashed password for 'Flutter2024'
-hashed_password = stauth.Hasher(['Flutter2024']).generate()[0]
+# Hash the password for 'Flutter2024'
+hashed_password = stauth.Hasher().hash('Flutter2024')
 
-# Credentials dictionary as required by streamlit-authenticator
 credentials = {
     "usernames": {
         "UKIOps": {
