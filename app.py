@@ -4,21 +4,24 @@ st.title("🔐 Secure Login")
 
 import streamlit_authenticator as stauth
 
-# Single credential
-names = ['UKIOps']
-usernames = ['UKIOps']
-passwords = ['Flutter2024']
+# Create hashed password for 'Flutter2024'
+hashed_password = stauth.Hasher(['Flutter2024']).generate()[0]
 
-# Hash the single password
-hashed_passwords = [stauth.Hasher().hash(pw) for pw in passwords]
+# Credentials dictionary as required by streamlit-authenticator
+credentials = {
+    "usernames": {
+        "UKIOps": {
+            "name": "UKIOps",
+            "password": hashed_password
+        }
+    }
+}
 
 authenticator = stauth.Authenticate(
-    names,
-    usernames,
-    hashed_passwords,
+    credentials,
     'my_cookie_name',
     'my_signature_key',
-    1    # This is the cookie_expiry_days, as a positional argument if your version wants it
+    cookie_expiry_days=1
 )
 
 name, authentication_status, username = authenticator.login('Login', 'main')
