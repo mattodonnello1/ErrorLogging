@@ -1,3 +1,30 @@
+
+import streamlit as st
+import streamlit_authenticator as stauth
+
+# Sample credentials (change these before sharing)
+names = ['Alice Smith', 'Bob Jones']
+usernames = ['alice', 'bob']
+passwords = ['abc123', 'def456']
+
+hashed_passwords = stauth.Hasher(passwords).generate()
+
+authenticator = stauth.Authenticate(
+    names, usernames, hashed_passwords,
+    'my_cookie_name', 'my_signature_key', cookie_expiry_days=1
+)
+
+name, authentication_status, username = authenticator.login('Login', 'main')
+
+if authentication_status == False:
+    st.error('Username or password is incorrect')
+elif authentication_status == None:
+    st.warning('Please enter your username and password')
+else:
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.success(f'Logged in as {name}')
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
