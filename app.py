@@ -4,12 +4,13 @@ st.title("🔐 Secure Login")
 
 import streamlit_authenticator as stauth
 
-# Sample credentials (change before sharing)
-names = ['Alice Smith', 'Bob Jones']
-usernames = ['alice', 'bob']
-passwords = ['abc123', 'def456']
+# Single credential
+names = ['UKIOps']
+usernames = ['UKIOps']
+passwords = ['Flutter2024']
 
-hashed_passwords = stauth.Hasher(passwords).generate()
+# Hash the single password
+hashed_passwords = [stauth.Hasher().hash(pw) for pw in passwords]
 
 authenticator = stauth.Authenticate(
     names, usernames, hashed_passwords,
@@ -26,7 +27,6 @@ else:
     authenticator.logout('Logout', 'sidebar')
     st.sidebar.success(f'Logged in as {name}')
 
-import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
