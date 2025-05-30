@@ -13,8 +13,12 @@ passwords = ['Flutter2024']
 hashed_passwords = [stauth.Hasher().hash(pw) for pw in passwords]
 
 authenticator = stauth.Authenticate(
-    names, usernames, hashed_passwords,
-    'my_cookie_name', 'my_signature_key', cookie_expiry_days=1
+    names,
+    usernames,
+    hashed_passwords,
+    'my_cookie_name',
+    'my_signature_key',
+    1    # This is the cookie_expiry_days, as a positional argument if your version wants it
 )
 
 name, authentication_status, username = authenticator.login('Login', 'main')
