@@ -315,6 +315,79 @@ def main():
     else:
         st.info("TimeBetStruckAt column not found in data or no data for selected filters")
     
+    # Error description input
+    st.subheader("Paste Trader Error Description (optional)")
+    trader_error_raw = st.text_area("Paste Trader Error Description (optional)", value="", height=180, key="trader_error_raw")
+    generated_error_description = ""
+    def parse_trader_error(raw):
+        import re
+        lines = [line.strip() for line in raw.splitlines() if line.strip()]
+        event_market = []
+        cause = ""
+        action = ""
+        section = None
+        section_map = {
+            'event': [
+                'event/market(s) affected',
+                'event/markets affected',
+                'event/market affected',
+            ],
+            'cause': [
+                'describe what caused this error',
+                'describe what caused the error',
+                'describe what caused error',
+            ],
+            'action': [
+                'action required',
+            ]
+        }
+        current_section = None
+        buffer = []
+        def flush_buffer():
+            nonlocal event_market, cause, action, current_section, buffer
+            if current_section == 'event':
+                event_market.extend(buffer)
+            elif current_section == 'cause' and buffer:
+                cause = buffer[0]
+            elif current_section == 'action' and buffer:
+                action = buffer[0]
+            buffer.clear()
+        for line in lines:
+            lower = line.lower()
+            found_section = None
+            for sec, keys in section_map.items():
+                if any(lower.startswith(k) for k in keys):
+                    found_section = sec
+                    break
+            if found_section:
+                flush_buffer()
+                current_section = found_section
+                continue
+            # If line is a bullet, remove bullet
+            if line.startswith('-') or line.startswith('•'):
+                line = line[1:].strip()
+            if current_section:
+                buffer.append(line)
+        flush_buffer()
+        # Format event/market
+        event_market_str = " - ".join(event_market) + "." if event_market else ""
+        # Format cause
+        cause_str = cause.capitalize().rstrip('.') + '.' if cause else ""
+        # Format action (past tense)
+        def to_past_tense(text):
+            text = text.strip()
+            if text.lower().startswith("void bet"):
+                return "Voided" + text[4:].replace("bet", "bets", 1).strip().capitalize() + "."
+            if text.lower().startswith("void bets"):
+                return "Voided" + text[8:].strip() + "."
+            if text.lower().startswith("palp"):
+                return "Palped" + text[4:].strip() + "."
+            if text.lower().startswith("unsettle"):
+                return "Unsettled" + text[8:].strip() + "."
+            return text.capitalize().rstrip('.') + '.'
+        action_str = to_past_tense(action) if action else ""
+        return " ".join([s for s in [event_market_str, cause_str, action_str] if s]).strip()
+
     # Process and display results
     st.header("📈 Analysis Results")
     
@@ -336,25 +409,30 @@ def main():
                 start_datetime, 
                 end_datetime
             )
-        
+            
+            # Generate error description if trader_error_raw is filled
+            if trader_error_raw.strip():
+                generated_error_description = parse_trader_error(trader_error_raw)
+
+        # Show generated error description if available (always, before results)
+        if generated_error_description:
+            st.subheader("Generated Error Description")
+            edited_error = st.text_area("Edit Error Description", value=generated_error_description, height=100, key="edited_error")
+            st.button("Copy Error Description", on_click=lambda: st.session_state.update({"copied_error": edited_error}))
+
         if results_df is not None and not results_df.empty:
             st.subheader("Summary by Source")
-            
-            # Display the results table
             st.dataframe(
                 results_df,
                 use_container_width=True,
                 hide_index=True
             )
-            
-            # Calculate totals
             total_row = {
                 'Brand': 'Totals',
                 'Total Bets': results_df['Total Bets'].sum(),
                 'Total Stakes': f"£{sum(float(stake.replace('£', '')) for stake in results_df['Total Stakes']):.2f}",
                 'Total Unique Customers': results_df['Total Unique Customers'].sum()
             }
-            
             st.subheader("Overall Totals")
             totals_df = pd.DataFrame([total_row])
             st.dataframe(
@@ -362,32 +440,6 @@ def main():
                 use_container_width=True,
                 hide_index=True
             )
-            
-            # Additional insights
-            st.subheader("📊 Key Insights")
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric(
-                    "Total Bets Processed", 
-                    f"{total_row['Total Bets']:,}"
-                )
-            
-            with col2:
-                st.metric(
-                    "Total Stakes", 
-                    total_row['Total Stakes']
-                )
-            
-            with col3:
-                st.metric(
-                    "Unique Customers", 
-                    f"{total_row['Total Unique Customers']:,}"
-                )
-            
-        else:
-            st.warning("No data found matching the selected criteria. Please adjust your filters and try again.")
     
     # Footer
     st.markdown("---")
