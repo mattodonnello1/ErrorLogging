@@ -184,56 +184,60 @@ def main():
             selected_markets = st.multiselect(
                 "Select Market Names",
                 options=unique_markets,
-                default=['Select All'],
+                default=[],
                 help="Choose specific markets or 'Select All' for all markets"
             )
         else:
             st.info("MarketName column not found in data")
-    
-    # SelectionName filter - dynamically filtered based on selected markets
+
+    # For each selected market, show a multiselect for its selections
+    market_selection_map = {}
     with col2:
-        selected_selections = []
-        if 'SelectionName' in df.columns and 'MarketName' in df.columns:
-            # Filter selections based on selected markets
-            if selected_markets and 'Select All' not in selected_markets:
-                # Get selections only for the selected markets
-                filtered_df_for_selections = df[df['MarketName'].isin(selected_markets)]
-                available_selections = list(filtered_df_for_selections['SelectionName'].dropna().unique())
-            else:
-                # Show all selections if all markets are selected
-                available_selections = list(df['SelectionName'].dropna().unique())
-            
-            unique_selections = ['Select All'] + sorted(available_selections)
-            selected_selections = st.multiselect(
-                "Select Selection Names",
-                options=unique_selections,
-                default=['Select All'],
-                help="Choose specific selections or 'Select All' for all selections"
-            )
+        if 'SelectionName' in df.columns and 'MarketName' in df.columns and selected_markets and 'Select All' not in selected_markets:
+            for market in selected_markets:
+                selections_for_market = sorted(df[df['MarketName'] == market]['SelectionName'].dropna().unique().tolist())
+                options = ['Select All'] + selections_for_market
+                selected = st.multiselect(
+                    f"Select for {market}",
+                    options=options,
+                    default=[],
+                    key=f"selection_{market}"
+                )
+                market_selection_map[market] = selected
+                if not selections_for_market:
+                    st.info(f"No selections found for {market}")
         elif 'SelectionName' in df.columns:
-            unique_selections = ['Select All'] + sorted(df['SelectionName'].dropna().unique().tolist())
-            selected_selections = st.multiselect(
-                "Select Selection Names",
-                options=unique_selections,
-                default=['Select All'],
-                help="Choose specific selections or 'Select All' for all selections"
-            )
+            st.info("Please select at least one market to choose selections.")
         else:
             st.info("SelectionName column not found in data")
-    
+
     # Date and time range filter
     st.subheader("📅 Date & Time Range Filter")
     
     start_datetime = None
     end_datetime = None
     
-    if 'TimeBetStruckAt' in df.columns:
+    # Filter df for selected markets and selections for time range
+    filtered_time_df = df.copy()
+    if 'MarketName' in filtered_time_df.columns and selected_markets and 'Select All' not in selected_markets:
+        filtered_time_df = filtered_time_df[filtered_time_df['MarketName'].isin(selected_markets)]
+    # Now filter by market_selection_map, using selected_markets as the source of truth
+    if 'SelectionName' in filtered_time_df.columns and selected_markets and 'Select All' not in selected_markets:
+        mask = pd.Series([False] * len(filtered_time_df))
+        for market in selected_markets:
+            selections = market_selection_map.get(market, [])
+            if 'Select All' in selections:
+                mask = mask | (filtered_time_df['MarketName'] == market)
+            elif selections:
+                mask = mask | ((filtered_time_df['MarketName'] == market) & (filtered_time_df['SelectionName'].isin(selections)))
+        filtered_time_df = filtered_time_df[mask]
+
+    if 'TimeBetStruckAt' in filtered_time_df.columns and not filtered_time_df.empty:
         try:
-            # Convert to datetime and get min/max datetimes
-            df_temp = df.copy()
-            df_temp['TimeBetStruckAt'] = pd.to_datetime(df_temp['TimeBetStruckAt'])
-            min_datetime = df_temp['TimeBetStruckAt'].min()
-            max_datetime = df_temp['TimeBetStruckAt'].max()
+            # Convert to datetime and get min/max datetimes from filtered data
+            filtered_time_df['TimeBetStruckAt'] = pd.to_datetime(filtered_time_df['TimeBetStruckAt'])
+            min_datetime = filtered_time_df['TimeBetStruckAt'].min()
+            max_datetime = filtered_time_df['TimeBetStruckAt'].max()
             
             date_col1, date_col2 = st.columns(2)
             
@@ -257,7 +261,7 @@ def main():
                 # Precise time adjustment
                 start_time_str = st.text_input(
                     "Precise Time (HH:MM:SS)",
-                    value=start_time_quick.strftime("%H:%M:%S"),
+                    value=min_datetime.time().strftime("%H:%M:%S"),
                     help="Fine-tune time with seconds precision (e.g., 03:01:05)",
                     key="start_time_precise"
                 )
@@ -290,7 +294,7 @@ def main():
                 # Precise time adjustment
                 end_time_str = st.text_input(
                     "Precise Time (HH:MM:SS)",
-                    value=end_time_quick.strftime("%H:%M:%S"),
+                    value=max_datetime.time().strftime("%H:%M:%S"),
                     help="Fine-tune time with seconds precision (e.g., 15:10:00)",
                     key="end_time_precise"
                 )
@@ -309,17 +313,26 @@ def main():
         except Exception as e:
             st.warning(f"Could not process date column: {str(e)}")
     else:
-        st.info("TimeBetStruckAt column not found in data")
+        st.info("TimeBetStruckAt column not found in data or no data for selected filters")
     
     # Process and display results
     st.header("📈 Analysis Results")
     
     if st.button("Generate Analysis", type="primary"):
         with st.spinner("Processing data..."):
+            # Build lists for process_betting_data
+            filtered_markets = list(market_selection_map.keys()) if market_selection_map else selected_markets
+            filtered_selections = []
+            for market, selections in market_selection_map.items():
+                if 'Select All' in selections or not selections:
+                    # Add all selections for this market
+                    filtered_selections.extend(df[df['MarketName'] == market]['SelectionName'].dropna().unique().tolist())
+                else:
+                    filtered_selections.extend(selections)
             results_df = process_betting_data(
                 df, 
-                selected_markets, 
-                selected_selections, 
+                filtered_markets, 
+                filtered_selections, 
                 start_datetime, 
                 end_datetime
             )
