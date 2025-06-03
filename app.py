@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime, date, time
 import io
+import streamlit.components.v1 as components
 
 def load_excel_data(uploaded_files):
     """Load and combine data from uploaded Excel files"""
     all_data = []
-    
+
     for uploaded_file in uploaded_files:
         try:
             # Try to read the Excel file
@@ -16,7 +17,7 @@ def load_excel_data(uploaded_files):
         except Exception as e:
             st.error(f"Error reading file {uploaded_file.name}: {str(e)}")
             return None
-    
+
     if all_data:
         # Combine all dataframes
         combined_df = pd.concat(all_data, ignore_index=True)
@@ -26,15 +27,15 @@ def load_excel_data(uploaded_files):
 
 def process_betting_data(df, selected_markets, selected_selections, start_date, end_date):
     """Process betting data based on filters and calculate metrics"""
-    
+
     # Make a copy to avoid modifying original data
     filtered_df = df.copy()
-    
+
     # Convert TimeBetStruckAt to datetime if it exists
     if 'TimeBetStruckAt' in filtered_df.columns:
         try:
             filtered_df['TimeBetStruckAt'] = pd.to_datetime(filtered_df['TimeBetStruckAt'])
-            
+
             # Filter by datetime range
             if start_date and end_date:
                 start_dt = pd.to_datetime(start_date)
@@ -45,50 +46,50 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
                 ]
         except Exception as e:
             st.warning(f"Warning: Could not process date filtering - {str(e)}")
-    
+
     # Filter by MarketName if specified
     if 'MarketName' in filtered_df.columns and selected_markets and 'Select All' not in selected_markets:
         filtered_df = filtered_df[filtered_df['MarketName'].isin(selected_markets)]
-    
+
     # Filter by SelectionName if specified
     if 'SelectionName' in filtered_df.columns and selected_selections and 'Select All' not in selected_selections:
         filtered_df = filtered_df[filtered_df['SelectionName'].isin(selected_selections)]
-    
+
     # Check if we have a Source column or similar
     source_column = None
     for col in filtered_df.columns:
         if col.lower() in ['source', 'brand', 'operator']:
             source_column = col
             break
-    
+
     if source_column is None:
         st.error("No source/brand column found in the data. Expected columns: 'Source', 'Brand', or 'Operator'")
         return None
-    
+
     # Filter to only include your specific brands
     target_brands = ['BETFAIR', 'PADDY_POWER', 'SKYBET']
     filtered_df = filtered_df[filtered_df[source_column].isin(target_brands)]
-    
+
     # Map source names to display format
     source_mapping = {
         'BETFAIR': 'Betfair',
         'PADDY_POWER': 'Paddy Power', 
         'SKYBET': 'SBGv2'
     }
-    
+
     # Initialize results for all three brands
     results = []
-    
+
     # Process each target brand
     for brand in target_brands:
         source_data = filtered_df[filtered_df[source_column] == brand]
         display_name = source_mapping.get(brand, brand)
-        
+
         if len(source_data) > 0:
             # Calculate unique bets (unique BetId values)
             if 'BetId' in source_data.columns:
                 unique_bet_ids = source_data['BetId'].nunique()
-                
+
                 # Calculate total stakes - sum TotalStakeGBP only once per unique BetId
                 if 'TotalStakeGBP' in source_data.columns:
                     # Group by BetId and take first stake value to avoid double counting
@@ -99,7 +100,7 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
             else:
                 unique_bet_ids = len(source_data)
                 total_stakes = source_data.get('TotalStakeGBP', pd.Series([0])).sum()
-            
+
             # Count unique customers
             if 'CustomerId' in source_data.columns:
                 unique_customers = source_data['CustomerId'].nunique()
@@ -110,7 +111,7 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
             unique_bet_ids = 0
             total_stakes = 0
             unique_customers = 0
-        
+
         results.append({
             'Brand': display_name,
             'Single Bets': '',  # Empty as shown in screenshot
@@ -119,7 +120,7 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
             'Total Stakes': f"£{total_stakes:.2f}",
             'Total Unique Customers': unique_customers
         })
-    
+
     # Convert to DataFrame and sort by brand name for consistent ordering
     results_df = pd.DataFrame(results)
     if not results_df.empty:
@@ -128,15 +129,93 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
         brand_order_map = {brand: i for i, brand in enumerate(brand_order)}
         results_df['sort_order'] = results_df['Brand'].apply(lambda x: brand_order_map.get(x, 999))
         results_df = results_df.sort_values('sort_order').drop('sort_order', axis=1)
-    
+
     return results_df
+
+def get_time_range_for_filters(df, markets, market_selection_map):
+    """Get the time range for the currently selected markets and selections"""
+    if df.empty or 'TimeBetStruckAt' not in df.columns:
+        return None, None
+    
+    filtered_df = df.copy()
+    
+    # Filter by markets
+    if markets and 'Select All' not in markets:
+        filtered_df = filtered_df[filtered_df['MarketName'].isin(markets)]
+    
+    # Filter by selections
+    if 'SelectionName' in filtered_df.columns and markets and 'Select All' not in markets:
+        mask = pd.Series([False] * len(filtered_df))
+        for market in markets:
+            selections = market_selection_map.get(market, [])
+            if 'Select All' in selections or not selections:
+                mask = mask | (filtered_df['MarketName'] == market)
+            elif selections:
+                mask = mask | ((filtered_df['MarketName'] == market) & (filtered_df['SelectionName'].isin(selections)))
+        filtered_df = filtered_df[mask]
+    
+    if filtered_df.empty:
+        return None, None
+    
+    try:
+        filtered_df['TimeBetStruckAt'] = pd.to_datetime(filtered_df['TimeBetStruckAt'])
+        min_datetime = filtered_df['TimeBetStruckAt'].min()
+        max_datetime = filtered_df['TimeBetStruckAt'].max()
+        return min_datetime, max_datetime
+    except:
+        return None, None
+
+def copy_to_clipboard_js(text):
+    """Generate JavaScript code to copy text to clipboard"""
+    js_code = f"""
+    <script>
+    function copyToClipboard() {{
+        navigator.clipboard.writeText(`{text}`).then(function() {{
+            alert('Error description copied to clipboard!');
+        }}, function(err) {{
+            // Fallback for older browsers
+            var textArea = document.createElement("textarea");
+            textArea.value = `{text}`;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {{
+                document.execCommand('copy');
+                alert('Error description copied to clipboard!');
+            }} catch (err) {{
+                alert('Failed to copy to clipboard');
+            }}
+            document.body.removeChild(textArea);
+        }});
+    }}
+    </script>
+    <button onclick="copyToClipboard()" style="
+        background-color: #ff4b4b;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+    ">Copy Error Description</button>
+    """
+    return js_code
 
 def main():
     """Main Streamlit application"""
-    
+
     st.title("Betting Data Error Logging Analysis Tool")
     st.write("Upload Excel files containing betting data to analyze metrics by source")
     
+    # Initialize session state for time synchronization
+    if 'time_sync_enabled' not in st.session_state:
+        st.session_state.time_sync_enabled = True
+    if 'last_quick_start_time' not in st.session_state:
+        st.session_state.last_quick_start_time = None
+    if 'last_quick_end_time' not in st.session_state:
+        st.session_state.last_quick_end_time = None
+
     # File upload section
     st.header("📁 Upload Data Files")
     uploaded_files = st.file_uploader(
@@ -145,37 +224,37 @@ def main():
         accept_multiple_files=True,
         help="Upload one or more Excel files containing betting data"
     )
-    
+
     if not uploaded_files:
         st.info("Please upload one or more Excel files to begin analysis")
         return
-    
+
     # Load data
     with st.spinner("Loading data..."):
         df = load_excel_data(uploaded_files)
-    
+
     if df is None:
         st.error("Failed to load data from uploaded files")
         return
-    
+
     if df.empty:
         st.error("No data found in uploaded files")
         return
-    
+
     st.success(f"Successfully loaded {len(df)} records from {len(uploaded_files)} file(s)")
-    
+
     # Display data info
     with st.expander("📊 Data Overview"):
         st.write(f"**Total Records:** {len(df)}")
         st.write(f"**Columns:** {', '.join(df.columns.tolist())}")
         st.write("**Sample Data:**")
         st.dataframe(df.head())
-    
+
     # Filter section
     st.header("🔍 Data Filters")
-    
+
     col1, col2 = st.columns(2)
-    
+
     # MarketName filter
     with col1:
         selected_markets = []
@@ -213,108 +292,120 @@ def main():
 
     # Date and time range filter
     st.subheader("📅 Date & Time Range Filter")
-    
+
     start_datetime = None
     end_datetime = None
-    
-    # Filter df for selected markets and selections for time range
-    filtered_time_df = df.copy()
-    if 'MarketName' in filtered_time_df.columns and selected_markets and 'Select All' not in selected_markets:
-        filtered_time_df = filtered_time_df[filtered_time_df['MarketName'].isin(selected_markets)]
-    # Now filter by market_selection_map, using selected_markets as the source of truth
-    if 'SelectionName' in filtered_time_df.columns and selected_markets and 'Select All' not in selected_markets:
-        mask = pd.Series([False] * len(filtered_time_df))
-        for market in selected_markets:
-            selections = market_selection_map.get(market, [])
-            if 'Select All' in selections:
-                mask = mask | (filtered_time_df['MarketName'] == market)
-            elif selections:
-                mask = mask | ((filtered_time_df['MarketName'] == market) & (filtered_time_df['SelectionName'].isin(selections)))
-        filtered_time_df = filtered_time_df[mask]
 
-    if 'TimeBetStruckAt' in filtered_time_df.columns and not filtered_time_df.empty:
-        try:
-            # Convert to datetime and get min/max datetimes from filtered data
-            filtered_time_df['TimeBetStruckAt'] = pd.to_datetime(filtered_time_df['TimeBetStruckAt'])
-            min_datetime = filtered_time_df['TimeBetStruckAt'].min()
-            max_datetime = filtered_time_df['TimeBetStruckAt'].max()
+    # Get time range for current filters
+    current_min_datetime, current_max_datetime = get_time_range_for_filters(df, selected_markets, market_selection_map)
+
+    if current_min_datetime and current_max_datetime:
+        # Track filter changes to reset times appropriately
+        current_filter_key = f"{sorted(selected_markets) if selected_markets else []}_{sorted([str(market_selection_map) for market in selected_markets])}"
+        
+        # Initialize or reset times when filters change
+        if ('filter_key' not in st.session_state or 
+            st.session_state.filter_key != current_filter_key or
+            'default_start_time' not in st.session_state):
             
-            date_col1, date_col2 = st.columns(2)
-            
-            with date_col1:
-                st.write("**Start Date & Time**")
-                start_date = st.date_input(
-                    "Start Date",
-                    value=min_datetime.date(),
-                    min_value=min_datetime.date(),
-                    max_value=max_datetime.date(),
-                    key="start_date"
-                )
-                
-                # Quick time selection dropdown
-                start_time_quick = st.time_input(
-                    "Quick Time Selection",
-                    value=min_datetime.time(),
-                    key="start_time_quick"
-                )
-                
-                # Precise time adjustment
-                start_time_str = st.text_input(
-                    "Precise Time (HH:MM:SS)",
-                    value=min_datetime.time().strftime("%H:%M:%S"),
-                    help="Fine-tune time with seconds precision (e.g., 03:01:05)",
-                    key="start_time_precise"
-                )
-                
-                # Parse and validate start time
-                try:
-                    start_time = datetime.strptime(start_time_str, "%H:%M:%S").time()
-                    start_datetime = datetime.combine(start_date, start_time)
-                except ValueError:
-                    st.error("Invalid time format. Please use HH:MM:SS")
-                    start_datetime = datetime.combine(start_date, start_time_quick)
-            
-            with date_col2:
-                st.write("**End Date & Time**")
-                end_date = st.date_input(
-                    "End Date", 
-                    value=max_datetime.date(),
-                    min_value=min_datetime.date(),
-                    max_value=max_datetime.date(),
-                    key="end_date"
-                )
-                
-                # Quick time selection dropdown
-                end_time_quick = st.time_input(
-                    "Quick Time Selection",
-                    value=max_datetime.time(),
-                    key="end_time_quick"
-                )
-                
-                # Precise time adjustment
-                end_time_str = st.text_input(
-                    "Precise Time (HH:MM:SS)",
-                    value=max_datetime.time().strftime("%H:%M:%S"),
-                    help="Fine-tune time with seconds precision (e.g., 15:10:00)",
-                    key="end_time_precise"
-                )
-                
-                # Parse and validate end time
-                try:
-                    end_time = datetime.strptime(end_time_str, "%H:%M:%S").time()
-                    end_datetime = datetime.combine(end_date, end_time)
-                except ValueError:
-                    st.error("Invalid time format. Please use HH:MM:SS")
-                    end_datetime = datetime.combine(end_date, end_time_quick)
-            
-            # Display selected datetime range
-            st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
-                
-        except Exception as e:
-            st.warning(f"Could not process date column: {str(e)}")
+            st.session_state.filter_key = current_filter_key
+            st.session_state.default_start_time = current_min_datetime.time()
+            st.session_state.default_end_time = current_max_datetime.time()
+            st.session_state.precise_start_time = current_min_datetime.time().strftime("%H:%M:%S")
+            st.session_state.precise_end_time = current_max_datetime.time().strftime("%H:%M:%S")
+            st.session_state.last_quick_start_time = current_min_datetime.time()
+            st.session_state.last_quick_end_time = current_max_datetime.time()
+
+        date_col1, date_col2 = st.columns(2)
+
+        with date_col1:
+            st.write("**Start Date & Time**")
+            start_date = st.date_input(
+                "Start Date",
+                value=current_min_datetime.date(),
+                min_value=current_min_datetime.date(),
+                max_value=current_max_datetime.date(),
+                key="start_date"
+            )
+
+            # Quick time selection
+            start_time_quick = st.time_input(
+                "Quick Time Selection",
+                value=st.session_state.get('default_start_time', current_min_datetime.time()),
+                key="start_time_quick"
+            )
+
+            # Check if quick time changed and sync to precise time
+            if st.session_state.get('last_quick_start_time') != start_time_quick:
+                st.session_state.last_quick_start_time = start_time_quick
+                st.session_state.precise_start_time = start_time_quick.strftime("%H:%M:%S")
+
+            # Precise time adjustment
+            start_time_str = st.text_input(
+                "Precise Time (HH:MM:SS)",
+                value=st.session_state.get('precise_start_time', current_min_datetime.time().strftime("%H:%M:%S")),
+                help="Fine-tune time with seconds precision (e.g., 03:01:05)",
+                key="start_time_precise"
+            )
+
+            # Update session state with current precise time
+            st.session_state.precise_start_time = start_time_str
+
+            # Parse and validate start time
+            try:
+                start_time = datetime.strptime(start_time_str, "%H:%M:%S").time()
+                start_datetime = datetime.combine(start_date, start_time)
+            except ValueError:
+                st.error("Invalid time format. Please use HH:MM:SS")
+                start_datetime = datetime.combine(start_date, start_time_quick)
+
+        with date_col2:
+            st.write("**End Date & Time**")
+            end_date = st.date_input(
+                "End Date", 
+                value=current_max_datetime.date(),
+                min_value=current_min_datetime.date(),
+                max_value=current_max_datetime.date(),
+                key="end_date"
+            )
+
+            # Quick time selection
+            end_time_quick = st.time_input(
+                "Quick Time Selection",
+                value=st.session_state.get('default_end_time', current_max_datetime.time()),
+                key="end_time_quick"
+            )
+
+            # Check if quick time changed and sync to precise time
+            if st.session_state.get('last_quick_end_time') != end_time_quick:
+                st.session_state.last_quick_end_time = end_time_quick
+                st.session_state.precise_end_time = end_time_quick.strftime("%H:%M:%S")
+
+            # Precise time adjustment
+            end_time_str = st.text_input(
+                "Precise Time (HH:MM:SS)",
+                value=st.session_state.get('precise_end_time', current_max_datetime.time().strftime("%H:%M:%S")),
+                help="Fine-tune time with seconds precision (e.g., 15:10:00)",
+                key="end_time_precise"
+            )
+
+            # Update session state with current precise time
+            st.session_state.precise_end_time = end_time_str
+
+            # Parse and validate end time
+            try:
+                end_time = datetime.strptime(end_time_str, "%H:%M:%S").time()
+                end_datetime = datetime.combine(end_date, end_time)
+            except ValueError:
+                st.error("Invalid time format. Please use HH:MM:SS")
+                end_datetime = datetime.combine(end_date, end_time_quick)
+
+        # Display selected datetime range
+        st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
+
     else:
         st.info("TimeBetStruckAt column not found in data or no data for selected filters")
-    
+
     # Error description input
     st.subheader("Paste Trader Error Description (optional)")
     trader_error_raw = st.text_area("Paste Trader Error Description (optional)", value="", height=180, key="trader_error_raw")
@@ -386,11 +477,19 @@ def main():
                 return "Unsettled" + text[8:].strip() + "."
             return text.capitalize().rstrip('.') + '.'
         action_str = to_past_tense(action) if action else ""
-        return " ".join([s for s in [event_market_str, cause_str, action_str] if s]).strip()
+        result = " ".join([s for s in [event_market_str, cause_str, action_str] if s]).strip()
+        
+        # Remove the word "please" from the final result (case insensitive)
+        import re
+        result = re.sub(r'\bplease\b', '', result, flags=re.IGNORECASE)
+        # Clean up any double spaces that might result from removing "please"
+        result = re.sub(r'\s+', ' ', result).strip()
+        
+        return result
 
     # Process and display results
     st.header("📈 Analysis Results")
-    
+
     if st.button("Generate Analysis", type="primary"):
         with st.spinner("Processing data..."):
             # Build lists for process_betting_data
@@ -409,7 +508,7 @@ def main():
                 start_datetime, 
                 end_datetime
             )
-            
+
             # Generate error description if trader_error_raw is filled
             if trader_error_raw.strip():
                 generated_error_description = parse_trader_error(trader_error_raw)
@@ -418,7 +517,10 @@ def main():
         if generated_error_description:
             st.subheader("Generated Error Description")
             edited_error = st.text_area("Edit Error Description", value=generated_error_description, height=100, key="edited_error")
-            st.button("Copy Error Description", on_click=lambda: st.session_state.update({"copied_error": edited_error}))
+            
+            # Simple copy functionality using code block
+            st.code(edited_error, language=None)
+            st.caption("Select the text above and copy it with Ctrl+C (Cmd+C on Mac)")
 
         if results_df is not None and not results_df.empty:
             st.subheader("Summary by Source")
@@ -440,7 +542,7 @@ def main():
                 use_container_width=True,
                 hide_index=True
             )
-    
+
     # Footer
     st.markdown("---")
     st.caption("Betting Data Analysis Tool - Built with Streamlit")
