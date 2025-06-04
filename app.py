@@ -728,20 +728,119 @@ def main():
                 components.html(copy_button_html, height=80)
 
         if results_df is not None and not results_df.empty:
-            st.subheader("Summary by Source")
+            # Summary by Source with copy button
+            col1, col2 = st.columns([6, 1])
+            with col1:
+                st.subheader("Summary by Source")
+            with col2:
+                # Create copyable text from the dataframe
+                table_text = "Summary by Source:\n"
+                table_text += results_df.to_string(index=False)
+                
+                # Escape the text for JavaScript
+                escaped_table = table_text.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
+                
+                copy_table_html = f"""
+                <div style="margin-top: 25px;">
+                    <button 
+                        onclick="copyTableToClipboard()" 
+                        style="
+                            background: #f0f2f6;
+                            border: 1px solid #c4c4c4;
+                            border-radius: 4px;
+                            padding: 8px 12px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            color: #262730;
+                        "
+                        title="Copy table to clipboard"
+                    >
+                        📋 Copy Table
+                    </button>
+                </div>
+                <script>
+                function copyTableToClipboard() {{
+                    const text = `{escaped_table}`;
+                    navigator.clipboard.writeText(text).then(function() {{
+                        console.log('Table copied to clipboard');
+                    }}).catch(function(err) {{
+                        // Fallback for older browsers
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    }});
+                }}
+                </script>
+                """
+                components.html(copy_table_html, height=80)
+            
             st.dataframe(
                 results_df,
                 use_container_width=True,
                 hide_index=True
             )
+            
+            # Calculate totals
             total_row = {
                 'Brand': 'Totals',
                 'Total Bets': results_df['Total Bets'].sum(),
                 'Total Stakes': f"£{sum(float(stake.replace('£', '')) for stake in results_df['Total Stakes']):.2f}",
                 'Total Unique Customers': results_df['Total Unique Customers'].sum()
             }
-            st.subheader("Overall Totals")
-            totals_df = pd.DataFrame([total_row])
+            
+            # Overall Totals with copy button
+            col1, col2 = st.columns([6, 1])
+            with col1:
+                st.subheader("Overall Totals")
+            with col2:
+                # Create copyable text for totals
+                totals_df = pd.DataFrame([total_row])
+                totals_text = "Overall Totals:\n"
+                totals_text += totals_df.to_string(index=False)
+                
+                # Escape the text for JavaScript
+                escaped_totals = totals_text.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
+                
+                copy_totals_html = f"""
+                <div style="margin-top: 25px;">
+                    <button 
+                        onclick="copyTotalsToClipboard()" 
+                        style="
+                            background: #f0f2f6;
+                            border: 1px solid #c4c4c4;
+                            border-radius: 4px;
+                            padding: 8px 12px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            color: #262730;
+                        "
+                        title="Copy totals to clipboard"
+                    >
+                        📋 Copy Totals
+                    </button>
+                </div>
+                <script>
+                function copyTotalsToClipboard() {{
+                    const text = `{escaped_totals}`;
+                    navigator.clipboard.writeText(text).then(function() {{
+                        console.log('Totals copied to clipboard');
+                    }}).catch(function(err) {{
+                        // Fallback for older browsers
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    }});
+                }}
+                </script>
+                """
+                components.html(copy_totals_html, height=80)
+            
             st.dataframe(
                 totals_df,
                 use_container_width=True,
