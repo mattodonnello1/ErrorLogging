@@ -412,70 +412,204 @@ def main():
     generated_error_description = ""
     def parse_trader_error(raw):
         import re
-        lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        event_market = []
-        cause = ""
-        action = ""
-        section = None
-        section_map = {
-            'event': [
-                'event/market(s) affected',
-                'event/markets affected',
-                'event/market affected',
-            ],
-            'cause': [
-                'describe what caused this error',
-                'describe what caused the error',
-                'describe what caused error',
-            ],
-            'action': [
-                'action required',
-            ]
-        }
-        current_section = None
-        buffer = []
-        def flush_buffer():
-            nonlocal event_market, cause, action, current_section, buffer
-            if current_section == 'event':
-                event_market.extend(buffer)
-            elif current_section == 'cause' and buffer:
-                cause = buffer[0]
-            elif current_section == 'action' and buffer:
-                action = buffer[0]
-            buffer.clear()
-        for line in lines:
-            lower = line.lower()
-            found_section = None
-            for sec, keys in section_map.items():
-                if any(lower.startswith(k) for k in keys):
-                    found_section = sec
-                    break
-            if found_section:
-                flush_buffer()
-                current_section = found_section
-                continue
-            # If line is a bullet, remove bullet
-            if line.startswith('-') or line.startswith('•'):
-                line = line[1:].strip()
-            if current_section:
-                buffer.append(line)
-        flush_buffer()
-        # Format event/market
-        event_market_str = " - ".join(event_market) + "." if event_market else ""
-        # Format cause
-        cause_str = cause.capitalize().rstrip('.') + '.' if cause else ""
+        
+        # Check if this is structured text (has section headers) or unstructured
+        if any(header in raw.lower() for header in ['action required', 'event/market', 'describe what caused']):
+            # Handle structured format
+            lines = [line.strip() for line in raw.splitlines() if line.strip()]
+            event_market = []
+            cause = ""
+            action = ""
+            section = None
+            section_map = {
+                'event': [
+                    'event/market(s) affected',
+                    'event/markets affected',
+                    'event/market affected',
+                ],
+                'cause': [
+                    'describe what caused this error',
+                    'describe what caused the error',
+                    'describe what caused error',
+                ],
+                'action': [
+                    'action required',
+                ]
+            }
+            current_section = None
+            buffer = []
+            def flush_buffer():
+                nonlocal event_market, cause, action, current_section, buffer
+                if current_section == 'event':
+                    event_market.extend(buffer)
+                elif current_section == 'cause' and buffer:
+                    cause = buffer[0]
+                elif current_section == 'action' and buffer:
+                    action = buffer[0]
+                buffer.clear()
+            for line in lines:
+                lower = line.lower()
+                found_section = None
+                for sec, keys in section_map.items():
+                    if any(lower.startswith(k) for k in keys):
+                        found_section = sec
+                        break
+                if found_section:
+                    flush_buffer()
+                    current_section = found_section
+                    continue
+                # If line is a bullet, remove bullet
+                if line.startswith('-') or line.startswith('•'):
+                    line = line[1:].strip()
+                if current_section:
+                    buffer.append(line)
+            flush_buffer()
+            # Format event/market
+            event_market_str = " - ".join(event_market) + "." if event_market else ""
+            # Format cause
+            cause_str = cause.capitalize().rstrip('.') + '.' if cause else ""
+        else:
+            # Handle unstructured format - parse as a single description
+            # Look for common patterns in the text
+            text = raw.strip()
+            
+            # Split into sentences to identify components
+            sentences = re.split(r'[.!]\s+', text)
+            
+            event_market_str = ""
+            cause_str = ""
+            action = ""
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                # Look for event/market info (usually first sentence with team names or event info)
+                if any(keyword in sentence.lower() for keyword in ['vs', 'v ', 'against', 'match', 'game']) and not event_market_str:
+                    event_market_str = sentence + "."
+                # Look for action patterns (void, palp, resettle, etc.)
+                elif any(keyword in sentence.lower() for keyword in ['void', 'palp', 'resettle', 'unsettle', 'cancel', 'reprice']):
+                    action = sentence
+                # Everything else goes to cause
+                else:
+                    if cause_str:
+                        cause_str += " " + sentence + "."
+                    else:
+                        cause_str = sentence.capitalize() + "."
         # Format action (past tense)
         def to_past_tense(text):
+            import re
             text = text.strip()
-            if text.lower().startswith("void bet"):
-                return "Voided" + text[4:].replace("bet", "bets", 1).strip().capitalize() + "."
+            
+            # Remove "please" first (case insensitive)
+            text = re.sub(r'\bplease\b', '', text, flags=re.IGNORECASE).strip()
+            
+            # Remove common question prefixes and transform
+            text = re.sub(r'^(can\s+we\s+|can\s+this\s+be\s+|can\s+any\s+|can\s+all\s+|need\s+to\s+)', '', text, flags=re.IGNORECASE).strip()
+            
+            # Handle "Can all x after y be z" pattern specifically for questions
+            can_all_pattern = r'^all\s+(.+?)\s+be\s+(.+?)[\?\.]?$'
+            can_all_match = re.match(can_all_pattern, text, re.IGNORECASE)
+            if can_all_match:
+                what = can_all_match.group(1).strip()
+                action = can_all_match.group(2).strip()
+                # Convert action to past tense
+                if action.lower() in ["voided", "void"]:
+                    return f"All {what} have been voided."
+                elif action.lower() in ["resettled", "resettle"]:
+                    return f"All {what} have been resettled."
+                else:
+                    return f"All {what} have been {action}."
+            
+            # Handle compound actions with slashes
+            if "/" in text:
+                parts = text.split("/")
+                transformed_parts = []
+                for part in parts:
+                    part = part.strip()
+                    if part.lower() == "void":
+                        transformed_parts.append("Voided")
+                    elif part.lower() == "re-price":
+                        transformed_parts.append("Re-priced")
+                    elif part.lower() == "reprice":
+                        transformed_parts.append("Repriced")
+                    elif part.lower() == "action":
+                        transformed_parts.append("Actioned")
+                    elif part.lower() == "resettle":
+                        transformed_parts.append("Resettled")
+                    elif part.lower() == "unsettle":
+                        transformed_parts.append("Unsettled")
+                    elif part.lower() == "palp":
+                        transformed_parts.append("Palped")
+                    elif part.lower() == "cancel":
+                        transformed_parts.append("Cancelled")
+                    else:
+                        transformed_parts.append(part.capitalize())
+                return "/".join(transformed_parts) + "."
+            
+            # Handle specific action verbs with proper spacing
             if text.lower().startswith("void bets"):
-                return "Voided" + text[8:].strip() + "."
-            if text.lower().startswith("palp"):
-                return "Palped" + text[4:].strip() + "."
-            if text.lower().startswith("unsettle"):
-                return "Unsettled" + text[8:].strip() + "."
-            return text.capitalize().rstrip('.') + '.'
+                remainder = text[9:].strip()
+                return f"Voided bets {remainder}" if remainder else "Voided bets"
+            elif text.lower().startswith("void bet"):
+                remainder = text[8:].strip()
+                return f"Voided bet {remainder}" if remainder else "Voided bet"
+            elif text.lower().startswith("void all"):
+                remainder = text[8:].strip()
+                return f"Voided all {remainder}" if remainder else "Voided all"
+            elif text.lower().startswith("void"):
+                remainder = text[4:].strip()
+                return f"Voided {remainder}" if remainder else "Voided"
+            elif text.lower().startswith("palp"):
+                remainder = text[4:].strip()
+                return f"Palped {remainder}" if remainder else "Palped"
+            elif text.lower().startswith("unsettle"):
+                remainder = text[8:].strip()
+                return f"Unsettled {remainder}" if remainder else "Unsettled"
+            elif text.lower().startswith("settle"):
+                remainder = text[6:].strip()
+                return f"Settled {remainder}" if remainder else "Settled"
+            elif text.lower().startswith("resettle"):
+                remainder = text[8:].strip()
+                return f"Resettled {remainder}" if remainder else "Resettled"
+            elif text.lower().startswith("re-price"):
+                remainder = text[8:].strip()
+                return f"Re-priced {remainder}" if remainder else "Re-priced"
+            elif text.lower().startswith("reprice"):
+                remainder = text[7:].strip()
+                return f"Repriced {remainder}" if remainder else "Repriced"
+            elif text.lower().startswith("cancel"):
+                remainder = text[6:].strip()
+                return f"Cancelled {remainder}" if remainder else "Cancelled"
+            elif text.lower().startswith("action account"):
+                return "Actioned account"
+            elif text.lower().startswith("action"):
+                remainder = text[6:].strip()
+                return f"Actioned {remainder}" if remainder else "Actioned"
+            
+            # Handle "This needs to be" patterns
+            if "needs to be" in text.lower():
+                text = re.sub(r'this\s+needs\s+to\s+be\s+', '', text, flags=re.IGNORECASE).strip()
+                # Capitalize first word after removal
+                if text:
+                    text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+            
+            # Handle "There are" -> "There was"
+            text = re.sub(r'\bthere\s+are\b', 'There was', text, flags=re.IGNORECASE)
+            
+            # Clean up extra spaces
+            text = re.sub(r'\s+', ' ', text).strip()
+            
+            # Ensure it ends with a period (only if it doesn't already end with punctuation)
+            if text and not text.endswith(('.', '!', '?')):
+                text += '.'
+            
+            # Capitalize the first letter if not already
+            if text:
+                text = text[0].upper() + text[1:] if len(text) > 1 else text.upper()
+            
+            return text
         action_str = to_past_tense(action) if action else ""
         result = " ".join([s for s in [event_market_str, cause_str, action_str] if s]).strip()
         
@@ -485,7 +619,23 @@ def main():
         # Clean up any double spaces that might result from removing "please"
         result = re.sub(r'\s+', ' ', result).strip()
         
+        # Capitalize first letter after each full stop
+        sentences = result.split('. ')
+        capitalized_sentences = []
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if sentence:
+                # Capitalize first letter of each sentence
+                sentence = sentence[0].upper() + sentence[1:] if len(sentence) > 1 else sentence.upper()
+            capitalized_sentences.append(sentence)
+        result = '. '.join(capitalized_sentences)
+        
         return result
+
+    # Generate error description if trader_error_raw is filled (outside of button click)
+    generated_error_description = ""
+    if trader_error_raw.strip():
+        generated_error_description = parse_trader_error(trader_error_raw)
 
     # Process and display results
     st.header("📈 Analysis Results")
@@ -509,18 +659,73 @@ def main():
                 end_datetime
             )
 
-            # Generate error description if trader_error_raw is filled
-            if trader_error_raw.strip():
-                generated_error_description = parse_trader_error(trader_error_raw)
-
-        # Show generated error description if available (always, before results)
+        # Show generated error description if available
         if generated_error_description:
             st.subheader("Generated Error Description")
-            edited_error = st.text_area("Edit Error Description", value=generated_error_description, height=100, key="edited_error")
             
-            # Simple copy functionality using code block
-            st.code(edited_error, language=None)
-            st.caption("Select the text above and copy it with Ctrl+C (Cmd+C on Mac)")
+            # Create a copyable text area with copy button
+            col1, col2 = st.columns([6, 1])
+            with col1:
+                # Custom styled text area with white text
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color: #262730;
+                        color: white;
+                        padding: 15px;
+                        border-radius: 5px;
+                        border: 1px solid #c4c4c4;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+                        font-size: 14px;
+                        min-height: 120px;
+                        white-space: pre-wrap;
+                        overflow-wrap: break-word;
+                        margin-bottom: 10px;
+                        line-height: 1.6;
+                    ">{generated_error_description}</div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            with col2:
+                # Use HTML and JavaScript for a working copy button
+                escaped_error = generated_error_description.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
+                
+                copy_button_html = f"""
+                <div style="margin-top: 25px;">
+                    <button 
+                        onclick="copyToClipboard()" 
+                        style="
+                            background: #f0f2f6;
+                            border: 1px solid #c4c4c4;
+                            border-radius: 4px;
+                            padding: 8px 12px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            color: #262730;
+                        "
+                        title="Copy to clipboard"
+                    >
+                        📋 Copy
+                    </button>
+                </div>
+                <script>
+                function copyToClipboard() {{
+                    const text = `{escaped_error}`;
+                    navigator.clipboard.writeText(text).then(function() {{
+                        console.log('Copied to clipboard');
+                    }}).catch(function(err) {{
+                        // Fallback for older browsers
+                        const textArea = document.createElement("textarea");
+                        textArea.value = text;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    }});
+                }}
+                </script>
+                """
+                components.html(copy_button_html, height=80)
 
         if results_df is not None and not results_df.empty:
             st.subheader("Summary by Source")
