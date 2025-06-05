@@ -660,34 +660,63 @@ def main():
         color: white !important;
     }
 
-    /* Dropdown styling - set text color to white */
+    /* Dropdown styling - white background, black text */
+    .stSelectbox > div > div {
+        background-color: white !important;
+        color: black !important;
+    }
+
     .stSelectbox > div > div p, .stMultiSelect > div > div > div > div p {
-        color: white !important;
+        color: black !important;
     }
 
     /* The actual dropdown menu */
     .stSelectbox > div > div ul, .stMultiSelect > div > div > div > div ul {
-        color: white !important;
+        background-color: white !important;
+        color: black !important;
     }
 
     /* Dropdown text on hover */
     .stSelectbox > div > div ul li:hover, .stMultiSelect > div > div > div > div ul li:hover {
-        color: white !important;
+        background-color: #f0f0f0 !important;
+        color: black !important;
     }
 
-    /* Date input styling - white text */
+    /* MultiSelect container styling */
+    .stMultiSelect > div > div > div {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    /* Date input styling - white background, black text */
     .stDateInput > div > div > input {
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #ddd !important;
+    }
+
+    /* Date input container styling */
+    .stDateInput > div > div {
+        background-color: white !important;
+    }
+
+    /* Date input label styling - keep white for visibility */
+    .stDateInput label {
         color: white !important;
     }
 
-    /* Text input styling - white text */
+    /* Text input styling - white background, black text */
     .stTextInput > div > div > input {
-        color: white !important;
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #ddd !important;
     }
 
-    /* Text area styling - white text */
+    /* Text area styling - white background, black text */
     .stTextArea > div > div > textarea {
-        color: white !important;
+        background-color: white !important;
+        color: black !important;
+        border: 1px solid #ddd !important;
     }
 
     </style>
