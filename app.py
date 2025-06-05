@@ -564,8 +564,52 @@ def main():
         color: white;
     }
     
-    /* Additional text color fixes for dark background */
-    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+    /* Force all text to white color */
+    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+        color: white !important;
+    }
+    
+    /* Force all headings to white */
+    h1, h2, h3, h4, h5, h6 {
+        color: white !important;
+    }
+    
+    /* Force paragraph text to white */
+    p, span, div {
+        color: white !important;
+    }
+    
+    /* Force Streamlit specific text elements to white */
+    .css-1629p8f, .css-1629p8f h1, .css-1629p8f h2, .css-1629p8f h3, .css-1629p8f h4 {
+        color: white !important;
+    }
+    
+    /* Force all text in main content area to white */
+    .main .block-container, .main .block-container * {
+        color: white !important;
+    }
+    
+    /* Force sidebar text to white if applicable */
+    .css-1d391kg, .css-1d391kg * {
+        color: white !important;
+    }
+    
+    /* Force metric labels and values to white */
+    .metric-container, .metric-container * {
+        color: white !important;
+    }
+    
+    /* Additional text elements */
+    .stSelectbox label, .stMultiSelect label, .stTextInput label, .stTextArea label {
+        color: white !important;
+    }
+    
+    /* Force all div text to white */
+    div[data-testid="stMarkdownContainer"] {
+        color: white !important;
+    }
+    
+    div[data-testid="stMarkdownContainer"] * {
         color: white !important;
     }
     
