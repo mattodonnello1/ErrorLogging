@@ -473,12 +473,87 @@ def main():
             help="Paste tab-separated data with columns: Bet Id, Dest, Shop, Stake, etc."
         )
         
+        # Error description input for fieldbook paste
+        st.subheader("Paste Trader Error Description (optional)")
+        trader_error_raw_fieldbook = st.text_area("Paste Trader Error Description (optional)", value="", height=180, key="trader_error_raw_fieldbook")
+        generated_error_description_fieldbook = ""
+        if trader_error_raw_fieldbook.strip():
+            generated_error_description_fieldbook = parse_trader_error(trader_error_raw_fieldbook)
+        
         # Show Generate Analysis button regardless of whether data is pasted
         if st.button("Generate Analysis", type="primary"):
             if not paste_data.strip():
                 st.warning("Please paste some data first")
             else:
                 st.header("📈 Analysis Results")
+                
+                # Show generated error description if available
+                if generated_error_description_fieldbook:
+                    st.subheader("Generated Error Description")
+                    
+                    # Create a copyable text area with copy button
+                    col1, col2 = st.columns([6, 1])
+                    with col1:
+                        # Custom styled text area with white text
+                        st.markdown(
+                            f"""
+                            <div style="
+                                background-color: #262730;
+                                color: white;
+                                padding: 15px;
+                                border-radius: 5px;
+                                border: 1px solid #c4c4c4;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+                                font-size: 14px;
+                                min-height: 120px;
+                                white-space: pre-wrap;
+                                overflow-wrap: break-word;
+                                margin-bottom: 10px;
+                                line-height: 1.6;
+                            ">{generated_error_description_fieldbook}</div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    with col2:
+                        # Use HTML and JavaScript for a working copy button
+                        escaped_error_fieldbook = generated_error_description_fieldbook.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
+                        
+                        copy_button_html_fieldbook = f"""
+                        <div style="margin-top: 25px;">
+                            <button 
+                                onclick="copyToClipboardFieldbook()" 
+                                style="
+                                    background: #f0f2f6;
+                                    border: 1px solid #c4c4c4;
+                                    border-radius: 4px;
+                                    padding: 8px 12px;
+                                    cursor: pointer;
+                                    font-size: 14px;
+                                    color: #262730;
+                                "
+                                title="Copy to clipboard"
+                            >
+                                📋 Copy
+                            </button>
+                        </div>
+                        <script>
+                        function copyToClipboardFieldbook() {{
+                            const text = `{escaped_error_fieldbook}`;
+                            navigator.clipboard.writeText(text).then(function() {{
+                                console.log('Copied to clipboard');
+                            }}).catch(function(err) {{
+                                // Fallback for older browsers
+                                const textArea = document.createElement("textarea");
+                                textArea.value = text;
+                                document.body.appendChild(textArea);
+                                textArea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textArea);
+                            }});
+                        }}
+                        </script>
+                        """
+                        components.html(copy_button_html_fieldbook, height=80)
                 
                 with st.spinner("Processing pasted data..."):
                     results_df = process_fieldbook_paste(paste_data)
