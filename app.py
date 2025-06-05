@@ -433,14 +433,33 @@ def main():
     # Custom CSS for blue theme
     st.markdown("""
     <style>
-    /* Main app background */
-    .main .block-container {
-        background-color: #f8faff;
+    /* Force light theme and prevent dark mode override */
+    .stApp {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
+        min-height: 100vh;
     }
+    
+    /* Main app background with darker blue gradient */
+    .main .block-container {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
+        min-height: 100vh;
+    }
+    
+    /* Override any dark mode settings */
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
+    }
+    
+    /* Alternative solid light blue background (uncomment to use) */
+    /*
+    .main .block-container {
+        background-color: #e8f4f8;
+    }
+    */
     
     /* Header styling */
     .stTitle {
-        color: #2c3e50;
+        color: white;
         font-weight: bold;
     }
     
@@ -542,7 +561,12 @@ def main():
     
     /* Subheader styling */
     .css-1629p8f h2, .css-1629p8f h3 {
-        color: #2c3e50;
+        color: white;
+    }
+    
+    /* Additional text color fixes for dark background */
+    .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: white !important;
     }
     
     /* Data source button container styling */
