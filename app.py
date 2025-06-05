@@ -540,21 +540,21 @@ def main():
         border: 1px solid #ddd;
     }
 
-    /* File uploader styling - blue background with grey text */
+    /* File uploader styling - blue background with white text */
     .stFileUploader > div {
         border: 2px dashed #4a90e2;
         border-radius: 10px;
         background-color: #4a90e2 !important;
-        color: #888888 !important;
+        color: white !important;
     }
 
     .stFileUploader > div * {
-        color: #888888 !important;
+        color: white !important;
     }
 
-    /* Override all file uploader text and icons to be grey */
+    /* Override all file uploader text and icons to be white */
     .stFileUploader label, .stFileUploader p, .stFileUploader span {
-        color: #888888 !important;
+        color: white !important;
     }
 
     /* File uploader button styling - darker blue to match theme */
@@ -660,19 +660,34 @@ def main():
         color: white !important;
     }
 
-    /* Dropdown styling - set text color to black */
+    /* Dropdown styling - set text color to white */
     .stSelectbox > div > div p, .stMultiSelect > div > div > div > div p {
-        color: black !important;
+        color: white !important;
     }
 
     /* The actual dropdown menu */
     .stSelectbox > div > div ul, .stMultiSelect > div > div > div > div ul {
-        color: black !important;
+        color: white !important;
     }
 
     /* Dropdown text on hover */
     .stSelectbox > div > div ul li:hover, .stMultiSelect > div > div > div > div ul li:hover {
-        color: black !important;
+        color: white !important;
+    }
+
+    /* Date input styling - white text */
+    .stDateInput > div > div > input {
+        color: white !important;
+    }
+
+    /* Text input styling - white text */
+    .stTextInput > div > div > input {
+        color: white !important;
+    }
+
+    /* Text area styling - white text */
+    .stTextArea > div > div > textarea {
+        color: white !important;
     }
 
     </style>
