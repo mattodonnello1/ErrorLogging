@@ -695,6 +695,16 @@ def main():
         border: 1px solid #ddd !important;
     }
 
+    /* Force date input text to be black */
+    .stDateInput input {
+        color: black !important;
+    }
+
+    /* Date input placeholder text */
+    .stDateInput input::placeholder {
+        color: #666 !important;
+    }
+
     /* Date input container styling */
     .stDateInput > div > div {
         background-color: white !important;
