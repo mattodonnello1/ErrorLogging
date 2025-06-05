@@ -540,16 +540,32 @@ def main():
         border: 1px solid #ddd;
     }
 
-    /* File uploader styling - keep neutral */
+    /* File uploader styling - match specific blue color from image */
     .stFileUploader > div {
-        border: 2px dashed #ddd;
+        border: 2px dashed #4a90e2;
         border-radius: 10px;
-        background-color: #f9f9f9;
-        color: black !important; /* Setting the file uploader text to black */
+        background-color: #4a90e2 !important;
+        color: white !important;
     }
 
     .stFileUploader > div * {
-        color: black !important;
+        color: white !important;
+    }
+
+    /* Override all file uploader text and icons to be white */
+    .stFileUploader label, .stFileUploader p, .stFileUploader span {
+        color: white !important;
+    }
+
+    /* File uploader button styling */
+    .stFileUploader button {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+
+    .stFileUploader button:hover {
+        background-color: rgba(255, 255, 255, 0.3) !important;
     }
 
     /* Info and success boxes - blue theme */
@@ -722,7 +738,7 @@ def main():
                         st.markdown(
                             f"""
                             <div style="
-                                background-color: white;
+                                background-color: #4a90e2;
                                 color: #1a1a1a !important;
                                 padding: 15px;
                                 border-radius: 5px;
@@ -1008,7 +1024,7 @@ def main():
                         st.markdown(
                             f"""
                             <div style="
-                                background-color: white;
+                                background-color: #4a90e2;
                                 color: #1a1a1a !important;
                                 padding: 15px;
                                 border-radius: 5px;
