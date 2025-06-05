@@ -11,7 +11,7 @@ def load_excel_data(uploaded_files):
 
     for uploaded_file in uploaded_files:
         try:
-            # Read Excel file
+            # Read Excel file yo
             df = pd.read_excel(uploaded_file)
             combined_df = pd.concat([combined_df, df], ignore_index=True)
         except Exception as e:
