@@ -540,21 +540,21 @@ def main():
         border: 1px solid #ddd;
     }
 
-    /* File uploader styling - match specific blue color from image */
+    /* File uploader styling - blue background with grey text */
     .stFileUploader > div {
         border: 2px dashed #4a90e2;
         border-radius: 10px;
         background-color: #4a90e2 !important;
-        color: white !important;
+        color: #888888 !important;
     }
 
     .stFileUploader > div * {
-        color: white !important;
+        color: #888888 !important;
     }
 
-    /* Override all file uploader text and icons to be white */
+    /* Override all file uploader text and icons to be grey */
     .stFileUploader label, .stFileUploader p, .stFileUploader span {
-        color: white !important;
+        color: #888888 !important;
     }
 
     /* File uploader button styling */
@@ -1020,25 +1020,14 @@ def main():
                     # Create a copyable text area with copy button
                     col1, col2 = st.columns([6, 1])
                     with col1:
-                        # Custom styled text area with dark text
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background-color: #4a90e2;
-                                color: #1a1a1a !important;
-                                padding: 15px;
-                                border-radius: 5px;
-                                border: 1px solid #c4c4c4;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-                                font-size: 14px;
-                                min-height: 120px;
-                                white-space: pre-wrap;
-                                overflow-wrap: break-word;
-                                margin-bottom: 10px;
-                                line-height: 1.6;
-                            "><span style="color: #666666 !important;">{generated_error_description}</span></div>
-                            """,
-                            unsafe_allow_html=True
+                        # Use native Streamlit text area that adapts to theme
+                        st.text_area(
+                            "Copy Text",
+                            value=generated_error_description,
+                            height=120,
+                            disabled=True,
+                            key="copy_area_excel",
+                            label_visibility="collapsed"
                         )
                     with col2:
                         # Use HTML and JavaScript for a working copy button
