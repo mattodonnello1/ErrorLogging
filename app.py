@@ -139,20 +139,28 @@ def get_time_range_for_filters(df, markets, market_selection_map):
     
     filtered_df = df.copy()
     
-    # Filter by markets
-    if markets and 'Select All' not in markets:
+    # If "Select All" is chosen for markets, use entire dataset
+    if markets and 'Select All' in markets:
+        # Use the entire dataset - no market filtering
+        pass
+    elif markets:
+        # Filter by specific markets only
         filtered_df = filtered_df[filtered_df['MarketName'].isin(markets)]
-    
-    # Filter by selections
-    if 'SelectionName' in filtered_df.columns and markets and 'Select All' not in markets:
-        mask = pd.Series([False] * len(filtered_df))
-        for market in markets:
-            selections = market_selection_map.get(market, [])
-            if 'Select All' in selections or not selections:
-                mask = mask | (filtered_df['MarketName'] == market)
-            elif selections:
-                mask = mask | ((filtered_df['MarketName'] == market) & (filtered_df['SelectionName'].isin(selections)))
-        filtered_df = filtered_df[mask]
+        
+        # Handle selections filtering only if we have specific markets (not "Select All" for markets)
+        if ('SelectionName' in filtered_df.columns and market_selection_map):
+            mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
+            for market in markets:
+                selections = market_selection_map.get(market, [])
+                if 'Select All' in selections or not selections:
+                    # Include all selections for this market when "Select All" is chosen or no selections specified
+                    market_mask = (filtered_df['MarketName'] == market)
+                    mask = mask | market_mask
+                else:
+                    # Include only specific selections for this market
+                    selection_mask = ((filtered_df['MarketName'] == market) & (filtered_df['SelectionName'].isin(selections)))
+                    mask = mask | selection_mask
+            filtered_df = filtered_df[mask]
     
     if filtered_df.empty:
         return None, None
@@ -306,15 +314,12 @@ def main():
         # Initialize or reset times when filters change
         if ('filter_key' not in st.session_state or 
             st.session_state.filter_key != current_filter_key or
-            'default_start_time' not in st.session_state):
+            'precise_start_time' not in st.session_state):
             
             st.session_state.filter_key = current_filter_key
-            st.session_state.default_start_time = current_min_datetime.time()
-            st.session_state.default_end_time = current_max_datetime.time()
-            st.session_state.precise_start_time = current_min_datetime.time().strftime("%H:%M:%S")
-            st.session_state.precise_end_time = current_max_datetime.time().strftime("%H:%M:%S")
-            st.session_state.last_quick_start_time = current_min_datetime.time()
-            st.session_state.last_quick_end_time = current_max_datetime.time()
+            # Set precise time to exact first/last bet times (with seconds)
+            st.session_state.precise_start_time = current_min_datetime.strftime("%H:%M:%S")
+            st.session_state.precise_end_time = current_max_datetime.strftime("%H:%M:%S")
 
         date_col1, date_col2 = st.columns(2)
 
@@ -328,27 +333,15 @@ def main():
                 key="start_date"
             )
 
-            # Quick time selection
-            start_time_quick = st.time_input(
-                "Quick Time Selection",
-                value=st.session_state.get('default_start_time', current_min_datetime.time()),
-                key="start_time_quick"
-            )
-
-            # Check if quick time changed and sync to precise time
-            if st.session_state.get('last_quick_start_time') != start_time_quick:
-                st.session_state.last_quick_start_time = start_time_quick
-                st.session_state.precise_start_time = start_time_quick.strftime("%H:%M:%S")
-
-            # Precise time adjustment
+            # Time selection
             start_time_str = st.text_input(
-                "Precise Time (HH:MM:SS)",
-                value=st.session_state.get('precise_start_time', current_min_datetime.time().strftime("%H:%M:%S")),
-                help="Fine-tune time with seconds precision (e.g., 03:01:05)",
+                "Time (HH:MM:SS)",
+                value=st.session_state.get('precise_start_time', current_min_datetime.strftime("%H:%M:%S")),
+                help="Shows exact time of first bet. Fine-tune with seconds precision (e.g., 03:01:05)",
                 key="start_time_precise"
             )
 
-            # Update session state with current precise time
+            # Update session state with current time
             st.session_state.precise_start_time = start_time_str
 
             # Parse and validate start time
@@ -357,7 +350,7 @@ def main():
                 start_datetime = datetime.combine(start_date, start_time)
             except ValueError:
                 st.error("Invalid time format. Please use HH:MM:SS")
-                start_datetime = datetime.combine(start_date, start_time_quick)
+                start_datetime = datetime.combine(start_date, current_min_datetime.time())
 
         with date_col2:
             st.write("**End Date & Time**")
@@ -369,27 +362,15 @@ def main():
                 key="end_date"
             )
 
-            # Quick time selection
-            end_time_quick = st.time_input(
-                "Quick Time Selection",
-                value=st.session_state.get('default_end_time', current_max_datetime.time()),
-                key="end_time_quick"
-            )
-
-            # Check if quick time changed and sync to precise time
-            if st.session_state.get('last_quick_end_time') != end_time_quick:
-                st.session_state.last_quick_end_time = end_time_quick
-                st.session_state.precise_end_time = end_time_quick.strftime("%H:%M:%S")
-
-            # Precise time adjustment
+            # Time selection
             end_time_str = st.text_input(
-                "Precise Time (HH:MM:SS)",
-                value=st.session_state.get('precise_end_time', current_max_datetime.time().strftime("%H:%M:%S")),
-                help="Fine-tune time with seconds precision (e.g., 15:10:00)",
+                "Time (HH:MM:SS)",
+                value=st.session_state.get('precise_end_time', current_max_datetime.strftime("%H:%M:%S")),
+                help="Shows exact time of last bet. Fine-tune with seconds precision (e.g., 15:10:00)",
                 key="end_time_precise"
             )
 
-            # Update session state with current precise time
+            # Update session state with current time
             st.session_state.precise_end_time = end_time_str
 
             # Parse and validate end time
@@ -398,7 +379,7 @@ def main():
                 end_datetime = datetime.combine(end_date, end_time)
             except ValueError:
                 st.error("Invalid time format. Please use HH:MM:SS")
-                end_datetime = datetime.combine(end_date, end_time_quick)
+                end_datetime = datetime.combine(end_date, current_max_datetime.time())
 
         # Display selected datetime range
         st.info(f"Selected range: {start_datetime.strftime('%Y/%m/%d %H:%M:%S')} to {end_datetime.strftime('%Y/%m/%d %H:%M:%S')}")
@@ -728,54 +709,7 @@ def main():
                 components.html(copy_button_html, height=80)
 
         if results_df is not None and not results_df.empty:
-            # Summary by Source with copy button
-            col1, col2 = st.columns([6, 1])
-            with col1:
-                st.subheader("Summary by Source")
-            with col2:
-                # Create copyable text from the dataframe
-                table_text = "Summary by Source:\n"
-                table_text += results_df.to_string(index=False)
-                
-                # Escape the text for JavaScript
-                escaped_table = table_text.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
-                
-                copy_table_html = f"""
-                <div style="margin-top: 25px;">
-                    <button 
-                        onclick="copyTableToClipboard()" 
-                        style="
-                            background: #f0f2f6;
-                            border: 1px solid #c4c4c4;
-                            border-radius: 4px;
-                            padding: 8px 12px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            color: #262730;
-                        "
-                        title="Copy table to clipboard"
-                    >
-                        📋 Copy Table
-                    </button>
-                </div>
-                <script>
-                function copyTableToClipboard() {{
-                    const text = `{escaped_table}`;
-                    navigator.clipboard.writeText(text).then(function() {{
-                        console.log('Table copied to clipboard');
-                    }}).catch(function(err) {{
-                        // Fallback for older browsers
-                        const textArea = document.createElement("textarea");
-                        textArea.value = text;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                    }});
-                }}
-                </script>
-                """
-                components.html(copy_table_html, height=80)
+            st.subheader("Summary by Source")
             
             st.dataframe(
                 results_df,
@@ -791,56 +725,9 @@ def main():
                 'Total Unique Customers': results_df['Total Unique Customers'].sum()
             }
             
-            # Overall Totals with copy button
-            col1, col2 = st.columns([6, 1])
-            with col1:
-                st.subheader("Overall Totals")
-            with col2:
-                # Create copyable text for totals
-                totals_df = pd.DataFrame([total_row])
-                totals_text = "Overall Totals:\n"
-                totals_text += totals_df.to_string(index=False)
-                
-                # Escape the text for JavaScript
-                escaped_totals = totals_text.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
-                
-                copy_totals_html = f"""
-                <div style="margin-top: 25px;">
-                    <button 
-                        onclick="copyTotalsToClipboard()" 
-                        style="
-                            background: #f0f2f6;
-                            border: 1px solid #c4c4c4;
-                            border-radius: 4px;
-                            padding: 8px 12px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            color: #262730;
-                        "
-                        title="Copy totals to clipboard"
-                    >
-                        📋 Copy Totals
-                    </button>
-                </div>
-                <script>
-                function copyTotalsToClipboard() {{
-                    const text = `{escaped_totals}`;
-                    navigator.clipboard.writeText(text).then(function() {{
-                        console.log('Totals copied to clipboard');
-                    }}).catch(function(err) {{
-                        // Fallback for older browsers
-                        const textArea = document.createElement("textarea");
-                        textArea.value = text;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                    }});
-                }}
-                </script>
-                """
-                components.html(copy_totals_html, height=80)
+            st.subheader("Overall Totals")
             
+            totals_df = pd.DataFrame([total_row])
             st.dataframe(
                 totals_df,
                 use_container_width=True,
