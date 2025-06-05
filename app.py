@@ -557,15 +557,23 @@ def main():
         color: #888888 !important;
     }
 
-    /* File uploader button styling */
+    /* File uploader button styling - darker blue to match theme */
     .stFileUploader button {
-        background-color: rgba(255, 255, 255, 0.2) !important;
+        background-color: #3b82f6 !important;
         color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border: 1px solid #3b82f6 !important;
+        border-radius: 4px !important;
     }
 
     .stFileUploader button:hover {
-        background-color: rgba(255, 255, 255, 0.3) !important;
+        background-color: #2563eb !important;
+        border-color: #2563eb !important;
+    }
+
+    .stFileUploader button:focus {
+        background-color: #2563eb !important;
+        border-color: #2563eb !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
     }
 
     /* Info and success boxes - blue theme */
