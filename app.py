@@ -430,7 +430,7 @@ def parse_trader_error(raw):
 def main():
     """Main Streamlit application"""
 
-    st.title("Betting Data Error Logging Analysis Tool")
+    st.title("Error Logging Analysis Tool")
     
     # Initialize session state for data source selection
     if 'data_source' not in st.session_state:
