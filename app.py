@@ -8,7 +8,7 @@ import re
 def load_excel_data(uploaded_files):
     """Load and combine data from uploaded Excel files"""
     combined_df = pd.DataFrame()
-    
+
     for uploaded_file in uploaded_files:
         try:
             # Read Excel file
@@ -17,39 +17,39 @@ def load_excel_data(uploaded_files):
         except Exception as e:
             st.error(f"Error reading {uploaded_file.name}: {str(e)}")
             continue
-    
+
     return combined_df if not combined_df.empty else None
 
 def process_betting_data(df, selected_markets, selected_selections, start_date, end_date):
     """Process betting data based on filters and calculate metrics"""
     filtered_df = df.copy()
-    
+
     # Apply market filters
     if selected_markets and 'Select All' not in selected_markets:
         filtered_df = filtered_df[filtered_df['MarketName'].isin(selected_markets)]
-    
+
     # Apply selection filters
     if selected_selections and 'Select All' not in selected_selections:
         filtered_df = filtered_df[filtered_df['SelectionName'].isin(selected_selections)]
-    
+
     # Apply date range filter
     if start_date and end_date:
         if 'TimeBetStruckAt' in filtered_df.columns:
             filtered_df['TimeBetStruckAt'] = pd.to_datetime(filtered_df['TimeBetStruckAt'])
             mask = (filtered_df['TimeBetStruckAt'] >= start_date) & (filtered_df['TimeBetStruckAt'] <= end_date)
             filtered_df = filtered_df[mask]
-    
+
     # Find source column
     source_column = None
     for col in ['Source', 'Brand', 'Operator']:
         if col in filtered_df.columns:
             source_column = col
             break
-    
+
     if source_column is None:
         st.error("No source column found (Source, Brand, or Operator)")
         return pd.DataFrame()
-    
+
     # Filter for target brands (exclude FANDUEL completely)
     target_brands = ['BETFAIR', 'PADDY_POWER', 'SKYBET']
     filtered_df = filtered_df[filtered_df[source_column].isin(target_brands)]
@@ -118,9 +118,9 @@ def get_time_range_for_filters(df, markets, market_selection_map):
     """Get the time range for the currently selected markets and selections"""
     if df.empty or 'TimeBetStruckAt' not in df.columns:
         return None, None
-    
+
     filtered_df = df.copy()
-    
+
     # If "Select All" is chosen for markets, use entire dataset
     if markets and 'Select All' in markets:
         # Use the entire dataset - no market filtering
@@ -128,7 +128,7 @@ def get_time_range_for_filters(df, markets, market_selection_map):
     elif markets:
         # Filter by specific markets only
         filtered_df = filtered_df[filtered_df['MarketName'].isin(markets)]
-        
+
         # Handle selections filtering only if we have specific markets (not "Select All" for markets)
         if ('SelectionName' in filtered_df.columns and market_selection_map):
             mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
@@ -143,10 +143,10 @@ def get_time_range_for_filters(df, markets, market_selection_map):
                     selection_mask = ((filtered_df['MarketName'] == market) & (filtered_df['SelectionName'].isin(selections)))
                     mask = mask | selection_mask
             filtered_df = filtered_df[mask]
-    
+
     if filtered_df.empty:
         return None, None
-    
+
     try:
         filtered_df['TimeBetStruckAt'] = pd.to_datetime(filtered_df['TimeBetStruckAt'])
         min_datetime = filtered_df['TimeBetStruckAt'].min()
@@ -158,14 +158,14 @@ def get_time_range_for_filters(df, markets, market_selection_map):
 def process_fieldbook_paste(paste_data):
     """Process pasted fieldbook data and return analysis results"""
     lines = [line.strip() for line in paste_data.strip().split('\n') if line.strip()]
-    
+
     # Parse tab-separated data - handle multi-line cashout format
     rows = []
     i = 0
     while i < len(lines):
         line = lines[i]
         parts = line.split('\t')
-        
+
         if len(parts) >= 18:  # Standard bet line
             rows.append(parts)
         elif len(parts) >= 4:  # Potential start of cashout format
@@ -173,7 +173,7 @@ def process_fieldbook_paste(paste_data):
             if i + 2 < len(lines):
                 next_line = lines[i + 1].strip()
                 third_line = lines[i + 2].strip()
-                
+
                 if next_line == 'FULL' and third_line.startswith('£'):
                     # This is a cashout format - combine into single line, skip FULL and amount
                     # Take first 4 parts, skip FULL and amount, then continue with remaining parts
@@ -190,44 +190,44 @@ def process_fieldbook_paste(paste_data):
                 # End of data, treat as regular line if it has enough parts
                 if len(parts) >= 18:
                     rows.append(parts)
-        
+
         i += 1
-    
+
     if not rows:
         return None
-    
+
     # Create DataFrame with proper column names
     columns = ['BetId', 'Dest', 'Shop', 'Stake', 'Cashout', 'Leg', 'SF', 'PercentMax', 
                'BT', 'Price', 'PT', 'Tag', 'Time', 'Country', 'LiabilityGroup', 'Nick', 'Id', 'NumBets']
-    
+
     df = pd.DataFrame(rows, columns=columns[:len(rows[0]) if rows else 0])
-    
+
     # Filter for target destinations (exclude FANDUEL completely)
     target_destinations = ['SKYBET', 'PADDY_POWER', 'BETFAIR']
     df = df[df['Dest'].isin(target_destinations)]
-    
+
     # Destination mapping for display
     dest_mapping = {
         'SKYBET': 'SBGv2',
         'PADDY_POWER': 'Paddy Power',
         'BETFAIR': 'Betfair'
     }
-    
+
     results = []
-    
+
     for dest in target_destinations:
         dest_data = df[df['Dest'] == dest]
         display_name = dest_mapping.get(dest, dest)
-        
+
         if len(dest_data) > 0:
             # Calculate unique bets (unique BetId values)
             unique_bet_ids = dest_data['BetId'].nunique()
-            
+
             # Calculate total stakes - handle cashouts properly
             stakes = []
             for stake_val in dest_data['Stake']:
                 stake_str = str(stake_val).strip()
-                
+
                 # Handle Betfair format: "£0.86 (€1.00)" - extract the GBP value
                 if '£' in stake_str:
                     # Extract GBP value (before any brackets)
@@ -250,16 +250,16 @@ def process_fieldbook_paste(paste_data):
                         stakes.append(float(clean_stake))
                     except:
                         stakes.append(0)
-            
+
             total_stakes = sum(stakes)
-            
+
             # Count unique customers (unique Id values)
             unique_customers = dest_data['Id'].nunique()
         else:
             unique_bet_ids = 0
             total_stakes = 0
             unique_customers = 0
-        
+
         results.append({
             'Brand': display_name,
             'Single Bets': '',
@@ -268,18 +268,18 @@ def process_fieldbook_paste(paste_data):
             'Total Stakes': f"£{total_stakes:.2f}",
             'Total Unique Customers': unique_customers
         })
-    
+
     # Create DataFrame and add sort order
     results_df = pd.DataFrame(results)
     sort_order = {'Betfair': 1, 'Paddy Power': 2, 'SBGv2': 3}
     results_df['sort_order'] = results_df['Brand'].map(sort_order)
     results_df = results_df.sort_values('sort_order').drop('sort_order', axis=1)
-    
+
     return results_df
 
 def parse_trader_error(raw):
     import re
-    
+
     # Check if this is structured text (has section headers) or unstructured
     if any(header in raw.lower() for header in ['action required', 'event/market', 'describe what caused']):
         # Handle structured format
@@ -339,19 +339,19 @@ def parse_trader_error(raw):
         # Handle unstructured format - parse as a single description
         # Look for common patterns in the text
         text = raw.strip()
-        
+
         # Split into sentences to identify components
         sentences = re.split(r'[.!]\s+', text)
-        
+
         event_market_str = ""
         cause_str = ""
         action = ""
-        
+
         for sentence in sentences:
             sentence = sentence.strip()
             if not sentence:
                 continue
-                
+
             # Look for event/market info (usually first sentence with team names or event info)
             if any(keyword in sentence.lower() for keyword in ['vs', 'v ', 'against', 'match', 'game']) and not event_market_str:
                 event_market_str = sentence + "."
@@ -364,7 +364,7 @@ def parse_trader_error(raw):
                     cause_str += " " + sentence + "."
                 else:
                     cause_str = sentence.capitalize() + "."
-    
+
     # Format action (past tense)
     def to_past_tense(text):
         import re
@@ -386,7 +386,7 @@ def parse_trader_error(raw):
             ('adjust', 'adjusted'),
             ('correct', 'corrected')
         ]
-        
+
         # Remove common question starters and convert
         removal_patterns = [
             (r'^please\s+', ''),
@@ -396,40 +396,40 @@ def parse_trader_error(raw):
             (r'^can\s+this\s+be\s+', ''),
             (r'^can\s+all\s+(.+?)\s+be\s+(.+)', r'all \1 have been \2'),
         ]
-        
+
         # Apply removal patterns first
         for pattern, replacement in removal_patterns:
             text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-        
+
         # Apply word replacements (remove periods to prevent double periods)
         for old, new in replacements:
             # Match the word and capture any trailing period
             pattern = r'\b' + re.escape(old) + r'(\.?)\b'
             # Replace with new word, keeping any original period
             text = re.sub(pattern, new + r'\1', text, flags=re.IGNORECASE)
-        
+
         # Capitalize first letter
         if text:
             text = text[0].upper() + text[1:]
-        
+
         return text.rstrip('.')
-    
+
     # Process action
     action_str = ""
     if action:
         action_processed = to_past_tense(action)
         if action_processed:
             action_str = action_processed + "."
-    
+
     # Combine all parts (skip empty ones)
     parts = [part for part in [event_market_str, cause_str, action_str] if part]
     result = " ".join(parts)
-    
+
     return result
 
 def main():
     """Main Streamlit application"""
-    
+
     # Custom CSS for blue theme
     st.markdown("""
     <style>
@@ -438,31 +438,31 @@ def main():
         background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
         min-height: 100vh;
     }
-    
+
     /* Main app background with darker blue gradient */
     .main .block-container {
         background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
         min-height: 100vh;
     }
-    
+
     /* Override any dark mode settings */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #1d4ed8 100%) !important;
     }
-    
+
     /* Alternative solid light blue background (uncomment to use) */
     /*
     .main .block-container {
         background-color: #e8f4f8;
     }
     */
-    
+
     /* Header styling */
     .stTitle {
         color: white;
         font-weight: bold;
     }
-    
+
     /* Button styling - only buttons get blue color */
     .stButton > button {
         background-color: #3b82f6;
@@ -472,12 +472,12 @@ def main():
         font-weight: bold;
         transition: all 0.2s ease;
     }
-    
+
     .stButton > button:hover {
         background-color: #2563eb;
         color: white !important;
     }
-    
+
     .stButton > button:active,
     .stButton > button:focus {
         background-color: #2563eb;
@@ -486,18 +486,18 @@ def main():
         outline-offset: 2px;
         box-shadow: none;
     }
-    
+
     /* Primary button styling */
     .stButton > button[kind="primary"] {
         background-color: #3b82f6;
         color: white !important;
     }
-    
+
     .stButton > button[kind="primary"]:hover {
         background-color: #2563eb;
         color: white !important;
     }
-    
+
     .stButton > button[kind="primary"]:active,
     .stButton > button[kind="primary"]:focus {
         background-color: #2563eb;
@@ -506,118 +506,123 @@ def main():
         outline-offset: 2px;
         box-shadow: none;
     }
-    
+
     /* Multiselect styling - blue color for the selected items */
     .stMultiSelect > div > div > div[data-baseweb="select"] {
         border: 1px solid #ddd;
     }
-    
+
     .stMultiSelect .stMultiSelect > div > div > div[data-baseweb="select"] > div {
         border: 1px solid #ddd;
     }
-    
+
     /* Selected multiselect tags get blue color */
     .stMultiSelect span[data-baseweb="tag"] {
         background-color: #3b82f6 !important;
         color: white !important;
     }
-    
+
     .stMultiSelect span[data-baseweb="tag"] svg {
         fill: white !important;
     }
-    
+
     /* Normal input borders - light gray */
     .stSelectbox > div > div {
         background-color: white;
         border: 1px solid #ddd;
     }
-    
+
     .stTextInput > div > div > input {
         border: 1px solid #ddd;
     }
-    
+
     .stTextArea > div > div > textarea {
         border: 1px solid #ddd;
     }
-    
+
     /* File uploader styling - keep neutral */
     .stFileUploader > div {
         border: 2px dashed #ddd;
         border-radius: 10px;
         background-color: #f9f9f9;
+        color: black !important; /* Setting the file uploader text to black */
     }
-    
+
+    .stFileUploader > div * {
+        color: black !important;
+    }
+
     /* Info and success boxes - blue theme */
     .stInfo {
         background-color: #dbeafe;
         border: 1px solid #3b82f6;
         color: #2c3e50;
     }
-    
+
     .stSuccess {
         background-color: #e6f7e6;
         border: 1px solid #b3d9b3;
     }
-    
+
     /* Subheader styling */
     .css-1629p8f h2, .css-1629p8f h3 {
         color: white;
     }
-    
+
     /* Force all text to white color */
     .stMarkdown, .stMarkdown p, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
         color: white !important;
     }
-    
+
     /* Force all headings to white */
     h1, h2, h3, h4, h5, h6 {
         color: white !important;
     }
-    
+
     /* Force paragraph text to white */
     p, span, div {
         color: white !important;
     }
-    
+
     /* Force Streamlit specific text elements to white */
     .css-1629p8f, .css-1629p8f h1, .css-1629p8f h2, .css-1629p8f h3, .css-1629p8f h4 {
         color: white !important;
     }
-    
+
     /* Force all text in main content area to white */
     .main .block-container, .main .block-container * {
         color: white !important;
     }
-    
+
     /* Force sidebar text to white if applicable */
     .css-1d391kg, .css-1d391kg * {
         color: white !important;
     }
-    
+
     /* Force metric labels and values to white */
     .metric-container, .metric-container * {
         color: white !important;
     }
-    
+
     /* Additional text elements */
     .stSelectbox label, .stMultiSelect label, .stTextInput label, .stTextArea label {
         color: white !important;
     }
-    
+
     /* Force all div text to white */
     div[data-testid="stMarkdownContainer"] {
         color: white !important;
     }
-    
+
     div[data-testid="stMarkdownContainer"] * {
         color: white !important;
     }
-    
+
     /* Data source button container styling */
     .stColumns > div {
         padding: 0 5px;
     }
-    
+
     /* Prevent text selection highlighting and color changes */
     .stButton > button {
         -webkit-user-select: none;
@@ -625,36 +630,52 @@ def main():
         -ms-user-select: none;
         user-select: none;
     }
-    
+
     /* Prevent any unwanted color changes on click */
     .stButton > button * {
         color: white !important;
     }
+
+    /* Dropdown styling - set text color to black */
+    .stSelectbox > div > div p, .stMultiSelect > div > div > div > div p {
+        color: black !important;
+    }
+
+    /* The actual dropdown menu */
+    .stSelectbox > div > div ul, .stMultiSelect > div > div > div > div ul {
+        color: black !important;
+    }
+
+    /* Dropdown text on hover */
+    .stSelectbox > div > div ul li:hover, .stMultiSelect > div > div > div > div ul li:hover {
+        color: black !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
     st.title("Error Logging Analysis Tool")
-    
+
     # Initialize session state for data source selection
     if 'data_source' not in st.session_state:
         st.session_state.data_source = None
-    
+
     # Data source selection buttons
     st.subheader("Select Data Source")
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         if st.button("Excel Upload Original\n(one hour behind)", use_container_width=True):
             st.session_state.data_source = "excel_original"
-    
+
     with col2:
         if st.button("Excel Upload (correct time, same as fieldbook)", use_container_width=True):
             st.session_state.data_source = "excel_corrected"
-    
+
     with col3:
         if st.button("Global Fieldbook Paste", use_container_width=True):
             st.session_state.data_source = "fieldbook_paste"
-    
+
     # Show selected data source
     if st.session_state.data_source:
         if st.session_state.data_source == "excel_original":
@@ -663,46 +684,46 @@ def main():
             st.info("Selected: Excel Upload Corrected (correct time)")
         elif st.session_state.data_source == "fieldbook_paste":
             st.info("Selected: Global Fieldbook Paste")
-    
+
     # Process based on selected data source
     if st.session_state.data_source == "fieldbook_paste":
         # Fieldbook paste interface
         st.header("📋 Paste Fieldbook Data")
         st.write("Paste your fieldbook data below (tab-separated format)")
-        
+
         paste_data = st.text_area(
             "Paste Data Here",
             height=200,
             help="Paste tab-separated data with columns: Bet Id, Dest, Shop, Stake, etc."
         )
-        
+
         # Error description input for fieldbook paste
         st.subheader("Paste Trader Error Description (optional)")
         trader_error_raw_fieldbook = st.text_area("Paste Trader Error Description (optional)", value="", height=180, key="trader_error_raw_fieldbook")
         generated_error_description_fieldbook = ""
         if trader_error_raw_fieldbook.strip():
             generated_error_description_fieldbook = parse_trader_error(trader_error_raw_fieldbook)
-        
+
         # Show Generate Analysis button regardless of whether data is pasted
         if st.button("Generate Analysis", type="primary"):
             if not paste_data.strip():
                 st.warning("Please paste some data first")
             else:
                 st.header("📈 Analysis Results")
-                
+
                 # Show generated error description if available
                 if generated_error_description_fieldbook:
                     st.subheader("Generated Error Description")
-                    
+
                     # Create a copyable text area with copy button
                     col1, col2 = st.columns([6, 1])
                     with col1:
-                        # Custom styled text area with white text
+                        # Custom styled text area with dark text
                         st.markdown(
                             f"""
                             <div style="
-                                background-color: #262730;
-                                color: white;
+                                background-color: white;
+                                color: #1a1a1a !important;
                                 padding: 15px;
                                 border-radius: 5px;
                                 border: 1px solid #c4c4c4;
@@ -713,14 +734,14 @@ def main():
                                 overflow-wrap: break-word;
                                 margin-bottom: 10px;
                                 line-height: 1.6;
-                            ">{generated_error_description_fieldbook}</div>
+                            "><span style="color: #666666 !important;">{generated_error_description_fieldbook}</span></div>
                             """,
                             unsafe_allow_html=True
                         )
                     with col2:
                         # Use HTML and JavaScript for a working copy button
                         escaped_error_fieldbook = generated_error_description_fieldbook.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
-                        
+
                         copy_button_html_fieldbook = f"""
                         <div style="margin-top: 25px;">
                             <button 
@@ -757,10 +778,10 @@ def main():
                         </script>
                         """
                         components.html(copy_button_html_fieldbook, height=80)
-                
+
                 with st.spinner("Processing pasted data..."):
                     results_df = process_fieldbook_paste(paste_data)
-                    
+
                     if results_df is not None and not results_df.empty:
                         st.subheader("Summary by Source")
                         st.dataframe(
@@ -768,7 +789,7 @@ def main():
                             use_container_width=True,
                             hide_index=True
                         )
-                        
+
                         # Calculate totals
                         total_row = {
                             'Brand': 'Totals',
@@ -787,7 +808,7 @@ def main():
                         )
                     else:
                         st.error("No valid data found in pasted content")
-        
+
     elif st.session_state.data_source in ["excel_original", "excel_corrected"]:
         # Excel upload interface
         st.header("Upload Data Files")
@@ -801,7 +822,7 @@ def main():
         if uploaded_files:
             # Load and process data
             df = load_excel_data(uploaded_files)
-            
+
             if df is None or df.empty:
                 st.error("No data found in uploaded files")
                 return
@@ -872,12 +893,12 @@ def main():
             if current_min_datetime and current_max_datetime:
                 # Track filter changes to reset times appropriately
                 current_filter_key = f"{sorted(selected_markets) if selected_markets else []}_{sorted([str(market_selection_map) for market in selected_markets])}"
-                
+
                 # Initialize or reset times when filters change
                 if ('filter_key' not in st.session_state or 
                     st.session_state.filter_key != current_filter_key or
                     'precise_start_time' not in st.session_state):
-                    
+
                     st.session_state.filter_key = current_filter_key
                     # Set precise time to exact first/last bet times (with seconds)
                     st.session_state.precise_start_time = current_min_datetime.strftime("%H:%M:%S")
@@ -979,16 +1000,16 @@ def main():
                 # Show generated error description if available
                 if generated_error_description:
                     st.subheader("Generated Error Description")
-                    
+
                     # Create a copyable text area with copy button
                     col1, col2 = st.columns([6, 1])
                     with col1:
-                        # Custom styled text area with white text
+                        # Custom styled text area with dark text
                         st.markdown(
                             f"""
                             <div style="
-                                background-color: #262730;
-                                color: white;
+                                background-color: white;
+                                color: #1a1a1a !important;
                                 padding: 15px;
                                 border-radius: 5px;
                                 border: 1px solid #c4c4c4;
@@ -999,14 +1020,14 @@ def main():
                                 overflow-wrap: break-word;
                                 margin-bottom: 10px;
                                 line-height: 1.6;
-                            ">{generated_error_description}</div>
+                            "><span style="color: #666666 !important;">{generated_error_description}</span></div>
                             """,
                             unsafe_allow_html=True
                         )
                     with col2:
                         # Use HTML and JavaScript for a working copy button
                         escaped_error = generated_error_description.replace('`', '\\`').replace('\n', '\\n').replace('\r', '\\r').replace('\\', '\\\\').replace("'", "\\'")
-                        
+
                         copy_button_html = f"""
                         <div style="margin-top: 25px;">
                             <button 
@@ -1068,7 +1089,7 @@ def main():
                     )
         else:
             st.info("Please upload one or more Excel files to begin analysis")
-    
+
     else:
         st.write("Please select a data source to continue.")
 
