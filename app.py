@@ -400,6 +400,10 @@ def parse_trader_error(raw):
         # Apply removal patterns first
         for pattern, replacement in removal_patterns:
             text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+        
+        # Remove ? and please from the text
+        text = re.sub(r'\?', '', text)
+        text = re.sub(r'\bplease\b\s*', '', text, flags=re.IGNORECASE)
 
         # Apply word replacements (remove periods to prevent double periods)
         for old, new in replacements:
@@ -729,6 +733,30 @@ def main():
         border: 1px solid #ddd !important;
     }
 
+    /* Error description box - force black text */
+    .error-description-box {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    .error-description-box * {
+        color: black !important;
+        font-weight: normal !important;
+    }
+
+    .error-description-box span {
+        color: black !important;
+        font-weight: normal !important;
+    }
+
+    /* Override any Streamlit markdown styling for error description */
+    div.error-description-box p,
+    div.error-description-box span,
+    div.error-description-box div {
+        color: black !important;
+        font-weight: normal !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -796,12 +824,12 @@ def main():
                     # Create a copyable text area with copy button
                     col1, col2 = st.columns([6, 1])
                     with col1:
-                        # Custom styled text area with dark text
+                        # Custom styled text area with black text
                         st.markdown(
                             f"""
-                            <div style="
-                                background-color: #4a90e2;
-                                color: #1a1a1a !important;
+                            <div class="error-description-box" style="
+                                background-color: white !important;
+                                color: black !important;
                                 padding: 15px;
                                 border-radius: 5px;
                                 border: 1px solid #c4c4c4;
@@ -812,7 +840,11 @@ def main():
                                 overflow-wrap: break-word;
                                 margin-bottom: 10px;
                                 line-height: 1.6;
-                            "><span style="color: #666666 !important;">{generated_error_description_fieldbook}</span></div>
+                                display: flex;
+                                align-items: flex-start;
+                            ">
+                                <span style="color: black !important; font-weight: normal !important;">{generated_error_description_fieldbook}</span>
+                            </div>
                             """,
                             unsafe_allow_html=True
                         )
@@ -1082,14 +1114,29 @@ def main():
                     # Create a copyable text area with copy button
                     col1, col2 = st.columns([6, 1])
                     with col1:
-                        # Use native Streamlit text area that adapts to theme
-                        st.text_area(
-                            "Copy Text",
-                            value=generated_error_description,
-                            height=120,
-                            disabled=True,
-                            key="copy_area_excel",
-                            label_visibility="collapsed"
+                        # Custom styled text area with white background and black text
+                        st.markdown(
+                            f"""
+                            <div class="error-description-box" style="
+                                background-color: white !important;
+                                color: black !important;
+                                padding: 15px;
+                                border-radius: 5px;
+                                border: 1px solid #c4c4c4;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+                                font-size: 14px;
+                                min-height: 120px;
+                                white-space: pre-wrap;
+                                overflow-wrap: break-word;
+                                margin-bottom: 10px;
+                                line-height: 1.6;
+                                display: flex;
+                                align-items: flex-start;
+                            ">
+                                <span style="color: black !important; font-weight: normal !important;">{generated_error_description}</span>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
                         )
                     with col2:
                         # Use HTML and JavaScript for a working copy button
