@@ -430,17 +430,12 @@ def parse_trader_error(raw):
 def main():
     """Main Streamlit application"""
     
-    # Custom CSS for teal theme
+    # Custom CSS for blue theme
     st.markdown("""
     <style>
     /* Main app background */
     .main .block-container {
-        background-color: #f8fffe;
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        background-color: #2c3e50;
+        background-color: #f8faff;
     }
     
     /* Header styling */
@@ -449,69 +444,100 @@ def main():
         font-weight: bold;
     }
     
-    /* Button styling */
+    /* Button styling - only buttons get blue color */
     .stButton > button {
-        background-color: #16a085;
-        color: white;
+        background-color: #3b82f6;
+        color: white !important;
         border: none;
         border-radius: 5px;
         font-weight: bold;
+        transition: all 0.2s ease;
     }
     
     .stButton > button:hover {
-        background-color: #138d75;
-        color: white;
+        background-color: #2563eb;
+        color: white !important;
+    }
+    
+    .stButton > button:active,
+    .stButton > button:focus {
+        background-color: #2563eb;
+        color: white !important;
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+        box-shadow: none;
     }
     
     /* Primary button styling */
     .stButton > button[kind="primary"] {
-        background-color: #16a085;
-        color: white;
+        background-color: #3b82f6;
+        color: white !important;
     }
     
     .stButton > button[kind="primary"]:hover {
-        background-color: #138d75;
+        background-color: #2563eb;
+        color: white !important;
     }
     
-    /* Selectbox styling */
+    .stButton > button[kind="primary"]:active,
+    .stButton > button[kind="primary"]:focus {
+        background-color: #2563eb;
+        color: white !important;
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+    
+    /* Multiselect styling - blue color for the selected items */
+    .stMultiSelect > div > div > div[data-baseweb="select"] {
+        border: 1px solid #ddd;
+    }
+    
+    .stMultiSelect .stMultiSelect > div > div > div[data-baseweb="select"] > div {
+        border: 1px solid #ddd;
+    }
+    
+    /* Selected multiselect tags get blue color */
+    .stMultiSelect span[data-baseweb="tag"] {
+        background-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    .stMultiSelect span[data-baseweb="tag"] svg {
+        fill: white !important;
+    }
+    
+    /* Normal input borders - light gray */
     .stSelectbox > div > div {
         background-color: white;
-        border: 1px solid #16a085;
+        border: 1px solid #ddd;
     }
     
-    /* Multiselect styling */
-    .stMultiSelect > div > div {
-        background-color: white;
-        border: 1px solid #16a085;
-    }
-    
-    /* Text input styling */
     .stTextInput > div > div > input {
-        border: 1px solid #16a085;
+        border: 1px solid #ddd;
     }
     
-    /* Text area styling */
     .stTextArea > div > div > textarea {
-        border: 1px solid #16a085;
+        border: 1px solid #ddd;
     }
     
-    /* File uploader styling */
+    /* File uploader styling - keep neutral */
     .stFileUploader > div {
-        border: 2px dashed #16a085;
+        border: 2px dashed #ddd;
         border-radius: 10px;
-        background-color: #f0f9f7;
+        background-color: #f9f9f9;
     }
     
-    /* Info box styling */
+    /* Info and success boxes - blue theme */
     .stInfo {
-        background-color: #d5f4e6;
-        border: 1px solid #16a085;
+        background-color: #dbeafe;
+        border: 1px solid #3b82f6;
+        color: #2c3e50;
     }
     
-    /* Success box styling */
     .stSuccess {
-        background-color: #d5f4e6;
-        border: 1px solid #16a085;
+        background-color: #e6f7e6;
+        border: 1px solid #b3d9b3;
     }
     
     /* Subheader styling */
@@ -524,18 +550,17 @@ def main():
         padding: 0 5px;
     }
     
-    /* Top navigation/header area */
-    .css-18e3th9 {
-        background-color: #16a085;
+    /* Prevent text selection highlighting and color changes */
+    .stButton > button {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
     }
     
-    /* Metric styling */
-    .metric-container {
-        background-color: white;
-        padding: 1rem;
-        border-radius: 10px;
-        border: 1px solid #16a085;
-        box-shadow: 0 2px 4px rgba(22, 160, 133, 0.1);
+    /* Prevent any unwanted color changes on click */
+    .stButton > button * {
+        color: white !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -697,7 +722,7 @@ def main():
         
     elif st.session_state.data_source in ["excel_original", "excel_corrected"]:
         # Excel upload interface
-        st.header("📁 Upload Data Files")
+        st.header("Upload Data Files")
         uploaded_files = st.file_uploader(
             "Choose Excel files", 
             type=['xlsx', 'xls'], 
