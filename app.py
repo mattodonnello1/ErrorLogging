@@ -20,7 +20,7 @@ def load_excel_data(uploaded_files):
 
     return combined_df if not combined_df.empty else None
 
-def process_betting_data(df, selected_markets, selected_selections, start_date, end_date):
+def process_betting_data(df, selected_markets, market_selection_map, start_date, end_date):
     """Process betting data based on filters and calculate metrics"""
     filtered_df = df.copy()
 
@@ -28,9 +28,25 @@ def process_betting_data(df, selected_markets, selected_selections, start_date, 
     if selected_markets and 'Select All' not in selected_markets:
         filtered_df = filtered_df[filtered_df['MarketName'].isin(selected_markets)]
 
-    # Apply selection filters
-    if selected_selections and 'Select All' not in selected_selections:
-        filtered_df = filtered_df[filtered_df['SelectionName'].isin(selected_selections)]
+    # Apply selection filters with proper market-selection relationship
+    if market_selection_map and 'SelectionName' in filtered_df.columns:
+        mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
+        for market, selections in market_selection_map.items():
+            if selections and 'Select All' not in selections:
+                # Only include selections that belong to this specific market
+                market_selection_mask = (
+                    (filtered_df['MarketName'] == market) & 
+                    (filtered_df['SelectionName'].isin(selections))
+                )
+                mask = mask | market_selection_mask
+            elif 'Select All' in selections or not selections:
+                # Include all selections for this market when "Select All" is chosen
+                market_mask = (filtered_df['MarketName'] == market)
+                mask = mask | market_mask
+        
+        # Only apply the mask if we have specific market-selection filters
+        if mask.any():
+            filtered_df = filtered_df[mask]
 
     # Apply date range filter
     if start_date and end_date:
@@ -1092,17 +1108,13 @@ def main():
 
             if st.button("Generate Analysis", type="primary"):
                 with st.spinner("Processing data..."):
-                    # Build lists for process_betting_data
+                    # Pass the market_selection_map directly instead of flattening selections
                     selected_markets_list = selected_markets if selected_markets else []
-                    selected_selections_list = []
-                    for market, selections in market_selection_map.items():
-                        if selections:
-                            selected_selections_list.extend(selections)
 
                     results_df = process_betting_data(
                         df, 
                         selected_markets_list, 
-                        selected_selections_list, 
+                        market_selection_map, 
                         start_datetime, 
                         end_datetime
                     )
