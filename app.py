@@ -248,6 +248,8 @@ def process_fieldbook_paste(paste_data):
                 if '£' in stake_str:
                     # Extract GBP value (before any brackets)
                     gbp_part = stake_str.split('(')[0].replace('£', '').strip()
+                    # Remove commas from the value (e.g., "1,650.00" -> "1650.00")
+                    gbp_part = gbp_part.replace(',', '')
                     try:
                         stakes.append(float(gbp_part))
                     except:
@@ -255,6 +257,8 @@ def process_fieldbook_paste(paste_data):
                 elif '€' in stake_str and '(' not in stake_str:
                     # Pure Euro value - convert or use as is
                     euro_part = stake_str.replace('€', '').strip()
+                    # Remove commas from the value (e.g., "1,650.00" -> "1650.00")
+                    euro_part = euro_part.replace(',', '')
                     try:
                         stakes.append(float(euro_part))
                     except:
